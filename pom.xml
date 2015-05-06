@@ -1,206 +1,145 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-  <modelVersion>4.0.0</modelVersion>
-  <parent>
-    <groupId>org.jenkins-ci.plugins</groupId>
-    <artifactId>plugin</artifactId>
-    <version>1.409</version>
-    <relativePath>../pom.xml</relativePath>
-  </parent>
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.jenkins-ci.plugins</groupId>
+		<artifactId>plugin</artifactId>
+		<version>1.554.1</version>
+	</parent>
 
-  <artifactId>scm-sync-configuration</artifactId>
-  <name>SCM Sync Configuration Plugin</name>
-  <version>0.0.8.1-SNAPSHOT</version>
-  <packaging>hpi</packaging>
-  <url>http://wiki.jenkins-ci.org/display/JENKINS/SCM+Sync+configuration+plugin</url>
-  <description>SCM Sync Configuration Jenkins plugin is aimed at 2 main features : First, keep sync'ed your config.xml (and other ressources) jenkins files with a SCM repository (backup), Secondly, track changes (and author) made on every file with commit messages.</description>
+  <groupId>org.jenkins-ci.plugins</groupId>
+	<artifactId>scm-sync-configuration</artifactId>
+	<name>SCM Sync Configuration Plugin</name>
+	<version>0.0.8.1-SNAPSHOT</version>
+	<packaging>hpi</packaging>
+	<url>http://wiki.jenkins-ci.org/display/JENKINS/SCM+Sync+configuration+plugin</url>
+	<description>SCM Sync Configuration Jenkins plugin is aimed at 2 main features : First, keep sync'ed your config.xml (and other ressources) jenkins files with a SCM repository (backup), Secondly, track changes (and author) made on every file with commit messages.</description>
 
-  <developers>
-    <developer>
-      <id>fcamblor</id>
-      <name>Frederic Camblor</name>
-      <email>fcamblor+jenkinswiki@gmail.com</email>
-    </developer>
-    <developer>
-      <id>bpaquet</id>
-      <name>Bertrand Paquet</name>
-      <email>bertrand.paquet@gmail.com</email>
-    </developer>
-  </developers>
+	<developers>
+		<developer>
+			<id>fcamblor</id>
+			<name>Frederic Camblor</name>
+			<email>fcamblor+jenkinswiki@gmail.com</email>
+		</developer>
+		<developer>
+			<id>bpaquet</id>
+			<name>Bertrand Paquet</name>
+			<email>bertrand.paquet@gmail.com</email>
+		</developer>
+	</developers>
 
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-
-    <powermock.version>1.4.8</powermock.version>
-  </properties>
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<version.apache.git>1.9.1</version.apache.git>
+		<version.apache.plexus>1.9.4</version.apache.plexus>
+		<version.codehaus.plexus>1.6</version.codehaus.plexus>
+		<version.google.guava>12.0.1</version.google.guava>
+		<version.jenkins.subversion>2.5</version.jenkins.subversion>
+		<version.junit>4.8.1</version.junit>
+		<version.maven.release>2.5</version.maven.release>
+		<version.maven.svnjava>2.1.1</version.maven.svnjava>
+		<version.mockito>1.8.5</version.mockito>
+		<version.powermock>1.4.8</version.powermock>
+	</properties>
     
-  <!-- get every artifact through maven.glassfish.org, which proxies all the artifacts that we need -->
-  <repositories>
-    <repository>
-        <id>repo.jenkins-ci.org</id>
-        <url>http://repo.jenkins-ci.org/public/</url>
-    </repository>
-  </repositories>
+	<!-- get every artifact through maven.glassfish.org, which proxies all the artifacts that we need -->
+	<repositories>
+		<repository>
+			<id>repo.jenkins-ci.org</id>
+			<url>http://repo.jenkins-ci.org/public/</url>
+		</repository>
+	</repositories>
 
-  <pluginRepositories>
-    <pluginRepository>
-        <id>repo.jenkins-ci.org</id>
-        <url>http://repo.jenkins-ci.org/public/</url>
-    </pluginRepository>
-  </pluginRepositories>
+	<pluginRepositories>
+		<pluginRepository>
+			<id>repo.jenkins-ci.org</id>
+			<url>http://repo.jenkins-ci.org/public/</url>
+		</pluginRepository>
+	</pluginRepositories>
   
-  <build>
-	<pluginManagement>
+	<build>
 		<plugins>
-            <plugin>
-                <artifactId>maven-release-plugin</artifactId>
-                <!-- To have pushChanges parameter available -->
-                <version>2.5</version>
-                <configuration>
-                    <!-- Git scm specific behaviour -->
-                    <localCheckout>true</localCheckout>
-                    <pushChanges>true</pushChanges>
-                </configuration>
-            </plugin>
-            <plugin>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <configuration>
-                    <!-- Needed to avoid some permgen space errors during test execution ... -->
-                    <argLine>-XX:MaxPermSize=128m</argLine>
-                </configuration>
-            </plugin>
-		</plugins>
-	</pluginManagement>
-	<plugins>
-		<plugin>
-			<groupId>org.codehaus.plexus</groupId>
-			<artifactId>plexus-maven-plugin</artifactId>
-			<executions>
-				<execution>
-				<id>merge</id>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-release-plugin</artifactId>
+				<version>${version.maven.release}</version>
+			</plugin>
+			<plugin>
+				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<descriptors>
-						<descriptor>src/main/resources/META-INF/plexus/components.xml</descriptor>
-					</descriptors>
+					<!-- Needed to avoid some permgen space errors during test execution ... -->
+					<argLine>-XX:MaxPermSize=128m</argLine>
 				</configuration>
-				<phase>generate-resources</phase>
-				<goals>
-					<goal>merge-descriptors</goal>
-				</goals>
-			</execution>
-			</executions>
-		</plugin>
-	</plugins>
-  </build>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.plexus</groupId>
+				<artifactId>plexus-component-metadata</artifactId>
+				<version>${version.codehaus.plexus}</version>
+			</plugin>
+		</plugins>
+	</build>
 
-  <dependencyManagement>
-      <dependencies>
-          <dependency>
-              <groupId>org.jenkins-ci.main</groupId>
-              <artifactId>maven-plugin</artifactId>
-              <version>${project.parent.version}</version>
-              <exclusions>
-                  <exclusion>
-                      <!-- Conflicts with org.jenkins-ci.plugins:subversion dependency -->
-                      <groupId>org.jvnet.hudson.plugins</groupId>
-                      <artifactId>subversion</artifactId>
-                  </exclusion>
-              </exclusions>
-          </dependency>
-          <dependency>
-              <groupId>org.jenkins-ci.main</groupId>
-              <artifactId>jenkins-test-harness</artifactId>
-              <version>${project.parent.version}</version>
-              <exclusions>
-                  <exclusion>
-                      <!-- Conflicts with org.jenkins-ci.plugins:subversion dependency -->
-                      <groupId>org.jvnet.hudson.plugins</groupId>
-                      <artifactId>subversion</artifactId>
-                  </exclusion>
-              </exclusions>
-          </dependency>
-      </dependencies>
-  </dependencyManagement>
 
-  <dependencies>
-  	<dependency>
-      <groupId>org.apache.maven.scm</groupId>
-      <artifactId>maven-scm-manager-plexus</artifactId>
-      <version>1.9.1</version>
-      <!-- 
-      <exclusions>
-      	<exclusion>
-      		<groupId>org.codehaus.plexus</groupId>
-      		<artifactId>plexus-container-default</artifactId>
-      	</exclusion>
-      </exclusions>
-       -->
-    </dependency>
-    <!-- 
-    <dependency>
-		<groupId>org.sonatype.sisu</groupId>
-		<artifactId>sisu-inject-plexus</artifactId>
-	    <version>1.4.3.1</version>
-    </dependency>
-     -->
-    
-    <dependency>
-      <groupId>org.jenkins-ci.plugins</groupId>
-      <artifactId>subversion</artifactId>
-	  <version>1.39</version>
-    </dependency>    
-    <!-- providers declaration -->
+	<dependencies>
+		<dependency>
+			<groupId>org.apache.maven.scm</groupId>
+			<artifactId>maven-scm-manager-plexus</artifactId>
+			<version>${version.apache.plexus}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jenkins-ci.plugins</groupId>
+			<artifactId>subversion</artifactId>
+			<version>${version.jenkins.subversion}</version>
+		</dependency>    
     <dependency>
       <groupId>com.google.code.maven-scm-provider-svnjava</groupId>
       <artifactId>maven-scm-provider-svnjava</artifactId>
-      <version>1.12</version>
+      <version>${version.maven.svnjava}</version>
     </dependency>
-    
-    <dependency>
-      <groupId>org.apache.maven.scm</groupId>
-      <artifactId>maven-scm-provider-gitexe</artifactId>
-      <version>1.9.1</version>
-    </dependency>
-    
-    
-    <!-- TEST DEPENDENCIES -->
-    <!-- powermock to mock static methods.. especially Hudson.getInstance() -->
-	<dependency>
-	   <groupId>org.powermock</groupId>
-	   <artifactId>powermock-module-junit4</artifactId>
-	   <version>${powermock.version}</version>
-	   <scope>test</scope>
+		<dependency>
+			<groupId>org.apache.maven.scm</groupId>
+			<artifactId>maven-scm-provider-gitexe</artifactId>
+			<version>${version.apache.git}</version>
 	</dependency>
-	<dependency>
-	   <groupId>org.powermock</groupId>
-	   <artifactId>powermock-api-mockito</artifactId>
-	   <version>${powermock.version}</version>
-	   <scope>test</scope>
-	</dependency>  
-	<!-- Fixing easymock to 3.0 because transitive dependency grabbed by powermock only allow to mock interfaces -->
-	<dependency>
-	   <groupId>org.mockito</groupId>
-	   <artifactId>mockito-core</artifactId>
-	   <version>1.8.5</version>
-	   <scope>test</scope>
-	</dependency>
-	<dependency>
-		<groupId>junit</groupId>
-		<artifactId>junit</artifactId>
-		<version>4.8.1</version>
-		<type>jar</type>
-		<scope>test</scope>
-	</dependency>
-    <dependency>
-        <groupId>com.google.guava</groupId>
-        <artifactId>guava</artifactId>
-        <version>12.0.1</version>
-    </dependency>
-  </dependencies>
+    
+		<!-- TEST DEPENDENCIES -->
+		<!-- powermock to mock static methods.. especially Hudson.getInstance() -->
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-module-junit4</artifactId>
+			<version>${version.powermock}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.powermock</groupId>
+			<artifactId>powermock-api-mockito</artifactId>
+			<version>${version.powermock}</version>
+			<scope>test</scope>
+		</dependency>  
+		<!-- Fixing easymock to 3.0 because transitive dependency grabbed by powermock only allow to mock interfaces -->
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<version>${version.mockito}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>${version.junit}</version>
+			<type>jar</type>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${version.google.guava}</version>
+		</dependency>
+	</dependencies>
   
-  <scm>
-    <connection>scm:git:git://github.com/jenkinsci/scm-sync-configuration-plugin.git</connection>
-    <developerConnection>scm:git:git@github.com:jenkinsci/scm-sync-configuration-plugin.git</developerConnection>
-    <url>https://github.com/jenkinsci/scm-sync-configuration-plugin</url>
-    <tag>HEAD</tag>
-  </scm>
+	<scm>
+		<connection>scm:git:git://github.com/jenkinsci/scm-sync-configuration-plugin.git</connection>
+		<developerConnection>scm:git:git@github.com:jenkinsci/scm-sync-configuration-plugin.git</developerConnection>
+		<url>https://github.com/jenkinsci/scm-sync-configuration-plugin</url>
+		<tag>HEAD</tag>
+	</scm>
 </project>
