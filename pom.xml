@@ -3,7 +3,7 @@
 	<parent>
 		<groupId>org.jenkins-ci.plugins</groupId>
 		<artifactId>plugin</artifactId>
-		<version>1.554.1</version>
+		<version>1.612</version>
 	</parent>
 
   <groupId>org.jenkins-ci.plugins</groupId>
@@ -32,13 +32,13 @@
 		<version.apache.git>1.9.1</version.apache.git>
 		<version.apache.plexus>1.9.4</version.apache.plexus>
 		<version.codehaus.plexus>1.6</version.codehaus.plexus>
-		<version.google.guava>12.0.1</version.google.guava>
-		<version.jenkins.subversion>2.5</version.jenkins.subversion>
-		<version.junit>4.8.1</version.junit>
-		<version.maven.release>2.5</version.maven.release>
+		<version.google.guava>18.0</version.google.guava>
+		<version.jenkins.subversion>1.45</version.jenkins.subversion>
+		<version.junit>4.12</version.junit>
+		<version.maven.release>2.5.2</version.maven.release>
 		<version.maven.svnjava>2.1.1</version.maven.svnjava>
-		<version.mockito>1.8.5</version.mockito>
-		<version.powermock>1.4.8</version.powermock>
+		<version.mockito>1.10.19</version.mockito>
+		<version.powermock>1.6.2</version.powermock>
 	</properties>
     
 	<!-- get every artifact through maven.glassfish.org, which proxies all the artifacts that we need -->
