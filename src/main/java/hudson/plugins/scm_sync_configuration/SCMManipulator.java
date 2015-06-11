@@ -187,7 +187,7 @@ public class SCMManipulator {
             LOGGER.throwing(ScmFileSet.class.getName(), "init<>", e);
             LOGGER.warning("[addFile] Error while creating ScmFileset : "+e.getMessage());
             return synchronizedFiles;
-		} catch (ScmException e) {
+		} catch (org.apache.maven.scm.ScmException e) {
 			LOGGER.throwing(ScmManager.class.getName(), "add", e);
 			LOGGER.warning("[addFile] Error while adding file : "+e.getMessage());
 			return synchronizedFiles;

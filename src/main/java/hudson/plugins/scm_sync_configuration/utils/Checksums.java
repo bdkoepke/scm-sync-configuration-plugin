@@ -1,30 +1,31 @@
 package hudson.plugins.scm_sync_configuration.utils;
 
-import com.google.common.io.ByteStreams;
-import com.google.common.io.Files;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.zip.CRC32;
-import java.util.zip.Checksum;
+import java.io.RandomAccessFile;
 
 /**
  * @author fcamblor
  * Utility class allowing to provide easy access to jenkins files checksums
  */
 public class Checksums {
-    public static boolean fileAndByteArrayContentAreEqual(File file, byte[] content) throws IOException {
-        if(!file.exists()){
-            return content == null || content.length == 0;
-        }
-
-        Checksum checksum = createChecksum();
-        long fileChecksum = Files.getChecksum(file, checksum);
-        long contentChecksum = ByteStreams.getChecksum(ByteStreams.newInputStreamSupplier(content), checksum);
-        return fileChecksum == contentChecksum;
+    private static byte[] readAllBytes(File f) throws IOException {
+	    RandomAccessFile r = new RandomAccessFile(f, "r");
+	    byte[] b = new byte[(int)r.length()];
+	    r.readFully(b);
+	    return b;
     }
 
-    private static Checksum createChecksum(){
-        return new CRC32();
+    public static boolean fileAndByteArrayContentAreEqual(File file, byte[] content, HashFunction f) throws IOException {
+	return file.exists() ?
+		f.hashBytes(readAllBytes(file)).equals(f.hashBytes(content)) :
+		content == null || content.length == 0;
+    }
+
+    public static boolean fileAndByteArrayContentAreEqual(File file, byte[] content) throws IOException {
+		return fileAndByteArrayContentAreEqual(file, content, Hashing.crc32());
     }
 }
