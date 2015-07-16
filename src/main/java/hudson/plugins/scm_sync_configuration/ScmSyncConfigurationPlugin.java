@@ -31,7 +31,7 @@ import java.util.concurrent.Future;
 import java.util.logging.Logger;
 
 public class ScmSyncConfigurationPlugin extends Plugin {
-    private static final ScmSyncStrategy[] AVAILABLE_STRATEGIES = new ScmSyncStrategy[]{
+    public static final ScmSyncStrategy[] AVAILABLE_STRATEGIES = new ScmSyncStrategy[]{
             new JenkinsConfigScmSyncStrategy(),
             new BasicPluginsConfigScmSyncStrategy(),
             new JobConfigScmSyncStrategy(),
@@ -242,19 +242,14 @@ public class ScmSyncConfigurationPlugin extends Plugin {
     }
 
     public void commitChangeset(ChangeSet changeset) {
-        try {
-            return changeset.isEmpty() ?
-                    null :
-                    (latestCommitFuture =
-                            this.business.queueChangeSet(
-                                    createScmContext(),
-                                    changeset,
-                                    getCurrentUser(),
-                                    ScmSyncConfigurationDataProvider.retrieveComment()));
-        } finally {
-            // Reinitializing transaction once commited
-            this.setTransaction(null);
-        }
+        if (! changeset.isEmpty())
+						this.business.queueChangeSet(
+										createScmContext(),
+										changeset,
+										getCurrentUser(),
+										ScmSyncConfigurationDataProvider.retrieveComment());
+        // Reinitializing transaction once commited
+        this.setTransaction(null);
     }
 
     public ScmTransaction getTransaction() {

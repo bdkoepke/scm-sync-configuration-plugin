@@ -69,7 +69,7 @@ public class SCMManipulator {
     }
 
     public void update(final File root) throws ScmException {
-        return this.scmManager.update(scmRepository, new ScmFileSet(root));
+        this.scmManager.update(scmRepository, new ScmFileSet(root));
     }
 
     public boolean checkout(final File checkoutDirectory) {
