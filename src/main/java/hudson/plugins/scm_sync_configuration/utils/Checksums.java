@@ -19,7 +19,7 @@ public class Checksums {
         return b;
     }
 
-    public static boolean fileAndByteArrayContentAreEqual(final File file, final byte[] content, final HashFunction f)
+    private static boolean fileAndByteArrayContentAreEqual(final File file, final byte[] content, final HashFunction f)
             throws IOException {
         return file.exists() ?
                 f.hashBytes(readAllBytes(file)).equals(f.hashBytes(content)) :

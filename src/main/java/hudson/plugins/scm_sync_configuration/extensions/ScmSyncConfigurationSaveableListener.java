@@ -19,7 +19,7 @@ public class ScmSyncConfigurationSaveableListener extends SaveableListener {
         final ScmSyncConfigurationPlugin plugin = ScmSyncConfigurationPlugin.getInstance();
         {
             final ScmSyncStrategy strategy = plugin.getStrategyForSaveable(o, file.getFile());
-            final WeightedMessage message = strategy.getCommitMessageFactory().getMessageWhenSaveableUpdated(o, file);
+            final WeightedMessage message = strategy.getCommitMessageFactory().getMessageWhenSaveableUpdated(o);
             plugin.getTransaction().defineCommitMessage(message);
         }
         final String path = JenkinsFilesHelper.buildPathRelativeToHudsonRoot(file.getFile());

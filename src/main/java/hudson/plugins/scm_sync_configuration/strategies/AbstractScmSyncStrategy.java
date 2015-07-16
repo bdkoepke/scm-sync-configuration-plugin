@@ -2,7 +2,6 @@ package hudson.plugins.scm_sync_configuration.strategies;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Collections2;
-import hudson.XmlFile;
 import hudson.model.Hudson;
 import hudson.model.Item;
 import hudson.model.Saveable;
@@ -20,6 +19,7 @@ import java.util.List;
 public abstract class AbstractScmSyncStrategy implements ScmSyncStrategy {
 
     private static final Function<String, File> PATH_TO_FILE_IN_HUDSON = new Function<String, File>() {
+        @SuppressWarnings("deprecation")
         public File apply(@Nullable String path) {
             return new File(Hudson.getInstance().getRootDir() + File.separator + path);
         }
@@ -40,7 +40,8 @@ public abstract class AbstractScmSyncStrategy implements ScmSyncStrategy {
         return createConfigEntityMatcher().matches(saveable, file);
     }
 
-    public PageMatcher getPageMatcherMatching(final String url) {
+    @SuppressWarnings("deprecation")
+    private PageMatcher getPageMatcherMatching(final String url) {
         final String rootURL = Hudson.getInstance().getRootUrlFromRequest();
         final String cleanedURL = url.startsWith(rootURL) ? url.substring(rootURL.length()) : url;
         for (final PageMatcher pm : pageMatchers)
@@ -49,6 +50,7 @@ public abstract class AbstractScmSyncStrategy implements ScmSyncStrategy {
         return null;
     }
 
+    @SuppressWarnings("deprecation")
     public List<File> createInitializationSynchronizedFileset() {
         final File hudsonRoot = Hudson.getInstance().getRootDir();
         final String[] matchingFilePaths = createConfigEntityMatcher().matchingFilesFrom(hudsonRoot);
@@ -69,7 +71,7 @@ public abstract class AbstractScmSyncStrategy implements ScmSyncStrategy {
 
     protected static class DefaultCommitMessageFactory implements CommitMessageFactory {
         @Override
-        public WeightedMessage getMessageWhenSaveableUpdated(final Saveable s, final XmlFile file) {
+        public WeightedMessage getMessageWhenSaveableUpdated(final Saveable s) {
             return new WeightedMessage("Modification on configuration(s)", MessageWeight.MINIMAL);
         }
 

@@ -9,7 +9,6 @@ import org.apache.maven.scm.command.add.AddScmResult;
 import org.apache.maven.scm.command.checkin.CheckInScmResult;
 import org.apache.maven.scm.command.checkout.CheckOutScmResult;
 import org.apache.maven.scm.command.remove.RemoveScmResult;
-import org.apache.maven.scm.command.update.UpdateScmResult;
 import org.apache.maven.scm.manager.NoSuchScmProviderException;
 import org.apache.maven.scm.manager.ScmManager;
 import org.apache.maven.scm.repository.ScmRepository;
@@ -41,10 +40,6 @@ public class SCMManipulator {
 
     /**
      * Will check if everything is settled up (useful before a scm manipulation)
-     *
-     * @param scmContext
-     * @param resetScmRepository
-     * @return
      */
     public boolean scmConfigurationSettledUp(final ScmContext scmContext, final boolean resetScmRepository) {
         final String scmRepositoryUrl = scmContext.getScmRepositoryUrl();
@@ -73,7 +68,7 @@ public class SCMManipulator {
         return scmRepositoryInitiated;
     }
 
-    public UpdateScmResult update(final File root) throws ScmException {
+    public void update(final File root) throws ScmException {
         return this.scmManager.update(scmRepository, new ScmFileSet(root));
     }
 
@@ -82,7 +77,7 @@ public class SCMManipulator {
             return false;
 
         // Checkouting sources
-        LOGGER.fine("Checkouting SCM files into [" + checkoutDirectory.getAbsolutePath() + "] ...");
+        LOGGER.fine(String.format("Checkouting SCM files into [%s] ...", checkoutDirectory.getAbsolutePath()));
         try {
             final CheckOutScmResult result = scmManager.checkOut(this.scmRepository, new ScmFileSet(checkoutDirectory));
             if (!result.isSuccess()) {
@@ -137,7 +132,6 @@ public class SCMManipulator {
             return synchronizedFiles;
 
         LOGGER.fine(String.format("Adding SCM file [%s] ...", filePathRelativeToScmRoot));
-
         try {
             // Split every directory leading through modifiedFilePathRelativeToHudsonRoot
             // and try add it in the scm
@@ -189,7 +183,7 @@ public class SCMManipulator {
     }
 
     private List<File> refineUpdatedFilesInScmResult(List updatedFiles) {
-        List<File> refinedUpdatedFiles = new ArrayList<File>();
+        List<File> refinedUpdatedFiles = new ArrayList<>();
 
         // Cannot use directly a List<ScmFile> or List<File> here, since result type will depend upon
         // current scm api version

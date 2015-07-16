@@ -1,17 +1,16 @@
 package hudson.plugins.scm_sync_configuration.xstream.migration;
 
-import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 
 /**
  * Migrator from old GlobalBuildStats POJO to later GlobalBuildStats POJO
  *
- * @param <TFROM>
- * @param <TTO>
+ * @param <T>
+ * @param <F>
  * @author fcamblor
  */
-public interface ScmSyncConfigurationDataMigrator<TFROM extends ScmSyncConfigurationPOJO, TTO extends ScmSyncConfigurationPOJO> {
-    TTO migrate(final TFROM pojo);
+public interface ScmSyncConfigurationDataMigrator<T extends ScmSyncConfigurationPOJO, F extends ScmSyncConfigurationPOJO> {
+    F migrate(final T pojo);
 
-    TTO readScmSyncConfigurationPOJO(final HierarchicalStreamReader reader, final UnmarshallingContext context);
+    F readScmSyncConfigurationPOJO(final HierarchicalStreamReader reader);
 }

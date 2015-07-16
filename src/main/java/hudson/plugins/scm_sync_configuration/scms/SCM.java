@@ -17,47 +17,43 @@ import java.util.List;
 import java.util.logging.Logger;
 
 public abstract class SCM {
+    static final Logger LOGGER = Logger.getLogger(SCM.class.getName());
+    private static final List<SCM> SCM_IMPLEMENTATIONS = new ArrayList<>();
 
-    protected static final Logger LOGGER = Logger.getLogger(SCM.class.getName());
-
-    protected static final List<SCM> SCM_IMPLEMENTATIONS = new ArrayList<SCM>() {
-        {
-            add(new ScmSyncNoSCM());
-            add(new ScmSyncSubversionSCM());
-            add(new ScmSyncGitSCM());
-        }
-    };
-
-    transient protected String title;
-    transient protected String scmClassName;
-    transient protected String configPage;
-    transient protected String repositoryUrlHelpPath;
-
-    protected SCM(String _title, String _configPage, String _scmClassName, String _repositoryUrlHelpPath) {
-        this.title = _title;
-        this.configPage = _configPage;
-        this.scmClassName = _scmClassName;
-        this.repositoryUrlHelpPath = _repositoryUrlHelpPath;
+    static {
+        SCM_IMPLEMENTATIONS.add(new ScmSyncNoSCM());
+        SCM_IMPLEMENTATIONS.add(new ScmSyncSubversionSCM());
+        SCM_IMPLEMENTATIONS.add(new ScmSyncGitSCM());
     }
 
-    public static SCM valueOf(Class<? extends SCM> clazz) {
+    transient final private String title;
+    transient final private String scmClassName;
+    transient final private String configPage;
+    transient final private String repositoryUrlHelpPath;
+
+    SCM(final String title, final String configPage, final String scmClassName, final String repositoryUrlHelpPath) {
+        this.title = title;
+        this.configPage = configPage;
+        this.scmClassName = scmClassName;
+        this.repositoryUrlHelpPath = repositoryUrlHelpPath;
+    }
+
+    public static SCM valueOf(final Class<? extends SCM> clazz) {
         return valueOf(getId(clazz));
     }
 
-    public static SCM valueOf(String scmId) {
-        for (SCM scm : SCM_IMPLEMENTATIONS) {
-            if (scmId.equals(scm.getId())) {
+    public static SCM valueOf(final String scmId) {
+        for (SCM scm : SCM_IMPLEMENTATIONS)
+            if (scmId.equals(scm.getId()))
                 return scm;
-            }
-        }
         return null;
     }
 
     public static SCM[] values() {
-        return SCM_IMPLEMENTATIONS.toArray(new SCM[0]);
+        return SCM_IMPLEMENTATIONS.toArray(new SCM[SCM_IMPLEMENTATIONS.size()]);
     }
 
-    private static String getId(Class<? extends SCM> clazz) {
+    private static String getId(final Class<? extends SCM> clazz) {
         return clazz.getName();
     }
 
@@ -65,11 +61,12 @@ public abstract class SCM {
         return this.title;
     }
 
-    public String getSCMClassName() {
+    private String getSCMClassName() {
         return this.scmClassName;
     }
 
-    public Descriptor<? extends hudson.scm.SCM> getSCMDescriptor() {
+    @SuppressWarnings("deprecation")
+    Descriptor getSCMDescriptor() {
         return Hudson.getInstance().getDescriptorByName(getSCMClassName());
     }
 
@@ -77,76 +74,53 @@ public abstract class SCM {
         return this.repositoryUrlHelpPath;
     }
 
-    public ScmRepository getConfiguredRepository(ScmManager scmManager, String scmRepositoryURL) {
-        SCMCredentialConfiguration credentials = extractScmCredentials(extractScmUrlFrom(scmRepositoryURL));
-
+    public ScmRepository getConfiguredRepository(final ScmManager scmManager, final String scmRepositoryURL) {
         LOGGER.info("Creating SCM repository object for url : " + scmRepositoryURL);
-        ScmRepository repository = null;
+        final ScmRepository repository;
         try {
             repository = scmManager.makeScmRepository(scmRepositoryURL);
-        } catch (ScmRepositoryException e) {
+        } catch (ScmRepositoryException | NoSuchScmProviderException e) {
             LOGGER.throwing(ScmManager.class.getName(), "makeScmRepository", e);
             LOGGER.severe("Error creating ScmRepository : " + e.getMessage());
-        } catch (NoSuchScmProviderException e) {
-            LOGGER.throwing(ScmManager.class.getName(), "makeScmRepository", e);
-            LOGGER.severe("Error creating ScmRepository : " + e.getMessage());
-        }
-        if (repository == null) {
             return null;
         }
 
-        ScmProviderRepository scmRepo = repository.getProviderRepository();
+        final SCMCredentialConfiguration credentials = extractScmCredentials(extractScmUrlFrom(scmRepositoryURL));
+        if (credentials == null)
+            return repository;
 
-        // TODO: uncomment this ??? (MRELEASE-76)
-        //scmRepo.setPersistCheckout( false );
+        final ScmProviderRepository scmRepo = repository.getProviderRepository();
+        LOGGER.info("Populating credentials data into SCM repository object ...");
+        if (!StringUtils.isEmpty(credentials.getUsername()))
+            scmRepo.setUser(credentials.getUsername());
+        if (!StringUtils.isEmpty(credentials.getPassword()))
+            scmRepo.setPassword(credentials.getPassword());
 
-        // TODO: instead of creating a SCMCredentialConfiguration, create a ScmProviderRepository
-        if (repository.getProviderRepository() instanceof ScmProviderRepositoryWithHost) {
-            LOGGER.info("Populating host data into SCM repository object ...");
-            ScmProviderRepositoryWithHost repositoryWithHost =
-                    (ScmProviderRepositoryWithHost) repository.getProviderRepository();
-            String host = repositoryWithHost.getHost();
+        if (!(scmRepo instanceof ScmProviderRepositoryWithHost))
+            return repository;
 
-            int port = repositoryWithHost.getPort();
-
-            if (port > 0) {
-                host += ":" + port;
-            }
-        }
-
-        if (credentials != null) {
-            LOGGER.info("Populating credentials data into SCM repository object ...");
-            if (!StringUtils.isEmpty(credentials.getUsername())) {
-                scmRepo.setUser(credentials.getUsername());
-            }
-            if (!StringUtils.isEmpty(credentials.getPassword())) {
-                scmRepo.setPassword(credentials.getPassword());
-            }
-
-            if (scmRepo instanceof ScmProviderRepositoryWithHost) {
-                ScmProviderRepositoryWithHost repositoryWithHost = (ScmProviderRepositoryWithHost) scmRepo;
-                if (!StringUtils.isEmpty(credentials.getPrivateKey())) {
-                    repositoryWithHost.setPrivateKey(credentials.getPrivateKey());
-                }
-
-                if (!StringUtils.isEmpty(credentials.getPassphrase())) {
-                    repositoryWithHost.setPassphrase(credentials.getPassphrase());
-                }
-            }
-        }
-
+        final ScmProviderRepositoryWithHost repositoryWithHost = (ScmProviderRepositoryWithHost) scmRepo;
+        if (!StringUtils.isEmpty(credentials.getPrivateKey()))
+            repositoryWithHost.setPrivateKey(credentials.getPrivateKey());
+        if (!StringUtils.isEmpty(credentials.getPassphrase()))
+            repositoryWithHost.setPassphrase(credentials.getPassphrase());
         return repository;
     }
 
-    public abstract String createScmUrlFromRequest(StaplerRequest req);
+    public abstract String createScmUrlFromRequest(final StaplerRequest req);
 
-    public abstract String extractScmUrlFrom(String scmUrl);
+    protected abstract String extractScmUrlFrom(final String scmUrl);
 
-    public abstract SCMCredentialConfiguration extractScmCredentials(String scmRepositoryURL);
+    public abstract SCMCredentialConfiguration extractScmCredentials(final String scmRepositoryURL);
 
     public String toString() {
-        return new ToStringBuilder(this).append("class", getClass().getName()).append("title", title).append("scmClassName", scmClassName)
-                .append("configPage", configPage).append("repositoryUrlHelpPath", repositoryUrlHelpPath).toString();
+        return new ToStringBuilder(this)
+                .append("class", getClass().getName())
+                .append("title", title)
+                .append("scmClassName", scmClassName)
+                .append("configPage", configPage)
+                .append("repositoryUrlHelpPath", repositoryUrlHelpPath)
+                .toString();
     }
 
     public String getId() {

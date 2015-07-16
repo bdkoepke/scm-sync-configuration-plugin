@@ -1,26 +1,51 @@
 package hudson.plugins.scm_sync_configuration.xstream.migration;
 
-import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 import hudson.plugins.scm_sync_configuration.scms.SCM;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
-public abstract class AbstractMigrator<TFROM extends ScmSyncConfigurationPOJO, TTO extends ScmSyncConfigurationPOJO> implements ScmSyncConfigurationDataMigrator<TFROM, TTO> {
-    public static final String SCM_REPOSITORY_URL_TAG = "scmRepositoryUrl";
-    public static final String SCM_TAG = "scm";
-    public static final String SCM_CLASS_ATTRIBUTE = "class";
-    public static final String SCM_NO_USER_COMMIT_MESSAGE = "noUserCommitMessage";
-    public static final String SCM_DISPLAY_STATUS = "displayStatus";
-    public static final String SCM_COMMIT_MESSAGE_PATTERN = "commitMessagePattern";
-    public static final String SCM_MANUAL_INCLUDES = "manualSynchronizationIncludes";
+public abstract class AbstractMigrator<F extends ScmSyncConfigurationPOJO, T extends ScmSyncConfigurationPOJO> implements ScmSyncConfigurationDataMigrator<F, T> {
+    // TODO: enum?
+    public enum ScmSyncConfiguration {
+        SCM_REPOSITORY_URL_TAG("scmRepositoryUrl"),
+        SCM_TAG("scm"),
+        SCM_CLASS_ATTRIBUTE("class"),
+        SCM_NO_USER_COMMIT_MESSAGE("noUserCommitMessage"),
+        SCM_DISPLAY_STATUS("displayStatus"),
+        SCM_COMMIT_MESSAGE_PATTERN("commitMessagePattern"),
+        SCM_MANUAL_INCLUDES("manualSynchronizationIncludes");
+
+        private static final Map<String, ScmSyncConfiguration> m = new HashMap<>();
+
+        static {
+            for (ScmSyncConfiguration s : ScmSyncConfiguration.values())
+                m.put(s.getName(), s);
+        }
+
+        private final String name;
+
+        ScmSyncConfiguration(String name) {
+            this.name = name;
+        }
+
+        public String getName() {
+            return this.name;
+        }
+
+        public static ScmSyncConfiguration fromName(String name) {
+            return m.get(name);
+        }
+    }
 
     private static final Logger LOGGER = Logger.getLogger(AbstractMigrator.class.getName());
 
-    public TTO migrate(TFROM pojo) {
-        final TTO migratedPojo = createMigratedPojo();
+    public T migrate(final F pojo) {
+        final T migratedPojo = createMigratedPojo();
         {
             migratedPojo.setScmRepositoryUrl(migrateScmRepositoryUrl(pojo.getScmRepositoryUrl()));
             migratedPojo.setScm(migrateScm(pojo.getScm()));
@@ -28,10 +53,9 @@ public abstract class AbstractMigrator<TFROM extends ScmSyncConfigurationPOJO, T
         return migratedPojo;
     }
 
-    public TTO readScmSyncConfigurationPOJO(
-            final HierarchicalStreamReader reader,
-            final UnmarshallingContext context) {
-        final TTO pojo = createMigratedPojo();
+    public T readScmSyncConfigurationPOJO(
+            final HierarchicalStreamReader reader) {
+        final T pojo = createMigratedPojo();
 
         String scmRepositoryUrl = null;
         String scmClassAttribute = null;
@@ -43,29 +67,38 @@ public abstract class AbstractMigrator<TFROM extends ScmSyncConfigurationPOJO, T
 
         while (reader.hasMoreChildren()) {
             reader.moveDown();
-            if (SCM_REPOSITORY_URL_TAG.equals(reader.getNodeName())) {
-                scmRepositoryUrl = reader.getValue();
-            } else if (SCM_NO_USER_COMMIT_MESSAGE.equals(reader.getNodeName())) {
-                noUserCommitMessage = Boolean.parseBoolean(reader.getValue());
-            } else if (SCM_DISPLAY_STATUS.equals(reader.getNodeName())) {
-                displayStatus = Boolean.parseBoolean(reader.getValue());
-            } else if (SCM_TAG.equals(reader.getNodeName())) {
-                scmClassAttribute = reader.getAttribute(SCM_CLASS_ATTRIBUTE);
-                scmContent = reader.getValue();
-            } else if (SCM_COMMIT_MESSAGE_PATTERN.equals(reader.getNodeName())) {
-                commitMessagePattern = reader.getValue();
-            } else if (SCM_MANUAL_INCLUDES.equals(reader.getNodeName())) {
-                manualIncludes = new ArrayList<>();
-                while (reader.hasMoreChildren()) {
-                    reader.moveDown();
-                    manualIncludes.add(reader.getValue());
-                    reader.moveUp();
-                }
-            } else {
-                IllegalArgumentException iae = new IllegalArgumentException("Unknown tag : " + reader.getNodeName());
-                LOGGER.throwing(this.getClass().getName(), "readScmSyncConfigurationPOJO", iae);
-                LOGGER.severe("Unknown tag : " + reader.getNodeName());
-                throw iae;
+            switch (ScmSyncConfiguration.fromName(reader.getNodeName())) {
+                case SCM_REPOSITORY_URL_TAG:
+                    scmRepositoryUrl = reader.getValue();
+                    break;
+                case SCM_TAG:
+                    scmClassAttribute = reader.getAttribute(ScmSyncConfiguration.SCM_CLASS_ATTRIBUTE.name());
+                    scmContent = reader.getValue();
+                    break;
+                case SCM_NO_USER_COMMIT_MESSAGE:
+                    noUserCommitMessage = Boolean.parseBoolean(reader.getValue());
+                    break;
+                case SCM_DISPLAY_STATUS:
+                    displayStatus = Boolean.parseBoolean(reader.getValue());
+                    break;
+                case SCM_COMMIT_MESSAGE_PATTERN:
+                    commitMessagePattern = reader.getValue();
+                    break;
+                case SCM_MANUAL_INCLUDES:
+                    manualIncludes = new ArrayList<>();
+                    while (reader.hasMoreChildren()) {
+                        reader.moveDown();
+                        manualIncludes.add(reader.getValue());
+                        reader.moveUp();
+                    }
+                    break;
+                case SCM_CLASS_ATTRIBUTE:
+                    // intentional fall-through
+                default:
+                    IllegalArgumentException iae = new IllegalArgumentException("Unknown tag : " + reader.getNodeName());
+                    LOGGER.throwing(this.getClass().getName(), "readScmSyncConfigurationPOJO", iae);
+                    LOGGER.severe("Unknown tag : " + reader.getNodeName());
+                    throw iae;
             }
             reader.moveUp();
         }
@@ -80,17 +113,15 @@ public abstract class AbstractMigrator<TFROM extends ScmSyncConfigurationPOJO, T
         return pojo;
     }
 
-    // Overridable
-    protected String migrateScmRepositoryUrl(final String scmRepositoryUrl) {
+    private String migrateScmRepositoryUrl(final String scmRepositoryUrl) {
         return scmRepositoryUrl == null ? null : scmRepositoryUrl;
     }
 
-    // Overridable
-    protected SCM migrateScm(final SCM scm) {
+    private SCM migrateScm(final SCM scm) {
         return scm == null ? null : SCM.valueOf(scm.getClass().getName());
     }
 
-    protected abstract TTO createMigratedPojo();
+    protected abstract T createMigratedPojo();
 
-    protected abstract SCM createSCMFrom(String clazz, String content);
+    protected abstract SCM createSCMFrom(final String clazz, final String content);
 }

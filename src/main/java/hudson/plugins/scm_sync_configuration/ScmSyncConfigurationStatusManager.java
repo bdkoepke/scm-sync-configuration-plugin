@@ -10,12 +10,13 @@ import java.util.logging.Logger;
 
 public class ScmSyncConfigurationStatusManager {
 
-    public static final String LOG_SUCCESS_FILENAME = "scm-sync-configuration.success.log";
-    public static final String LOG_FAIL_FILENAME = "scm-sync-configuration.fail.log";
+    private static final String LOG_SUCCESS_FILENAME = "scm-sync-configuration.success.log";
+    private static final String LOG_FAIL_FILENAME = "scm-sync-configuration.fail.log";
     private static final Logger LOGGER = Logger.getLogger(ScmSyncConfigurationStatusManager.class.getName());
     private final File fail;
     private final File success;
 
+    @SuppressWarnings("deprecation")
     public ScmSyncConfigurationStatusManager() {
         fail = new File(Hudson.getInstance().getRootDir().getAbsolutePath() + File.separator + LOG_FAIL_FILENAME);
         success = new File(Hudson.getInstance().getRootDir().getAbsolutePath() + File.separator + LOG_SUCCESS_FILENAME);

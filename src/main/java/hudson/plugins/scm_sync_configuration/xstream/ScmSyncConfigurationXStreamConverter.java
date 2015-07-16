@@ -11,6 +11,7 @@ import hudson.plugins.scm_sync_configuration.xstream.migration.ScmSyncConfigurat
 import hudson.plugins.scm_sync_configuration.xstream.migration.ScmSyncConfigurationPOJO;
 import hudson.plugins.scm_sync_configuration.xstream.migration.v0.InitialMigrator;
 import hudson.plugins.scm_sync_configuration.xstream.migration.v1.V0ToV1Migrator;
+import static hudson.plugins.scm_sync_configuration.xstream.migration.AbstractMigrator.ScmSyncConfiguration.*;
 
 import java.util.logging.Logger;
 
@@ -30,7 +31,7 @@ import java.util.logging.Logger;
  * @author fcamblor
  */
 public class ScmSyncConfigurationXStreamConverter implements Converter {
-    protected static final String VERSION_ATTRIBUTE = "version";
+    private static final String VERSION_ATTRIBUTE = "version";
     private static final Logger LOGGER = Logger.getLogger(ScmSyncConfigurationXStreamConverter.class.getName());
 
     /**
@@ -59,91 +60,91 @@ public class ScmSyncConfigurationXStreamConverter implements Converter {
     public void marshal(
             final Object source,
             final HierarchicalStreamWriter writer,
-            final MarshallingContext context) {
+            final MarshallingContext context)
+    {
         final ScmSyncConfigurationPlugin plugin = (ScmSyncConfigurationPlugin) source;
 
         // Since "v1", providing version number in scm sync configuration heading tag
         writer.addAttribute(VERSION_ATTRIBUTE, String.valueOf(getCurrentScmSyncConfigurationVersionNumber()));
 
-        if (plugin.getSCM() != null) {
-            writer.startNode(AbstractMigrator.SCM_TAG);
-            writer.addAttribute(AbstractMigrator.SCM_CLASS_ATTRIBUTE, plugin.getSCM().getId());
-            writer.endNode();
-        }
+        if (plugin.getSCM() != null)
+            addAttribute(writer, plugin);
+        if (plugin.getScmRepositoryUrl() != null)
+            addNode(SCM_REPOSITORY_URL_TAG, writer, plugin.getScmRepositoryUrl());
 
-        if (plugin.getScmRepositoryUrl() != null) {
-            writer.startNode(AbstractMigrator.SCM_REPOSITORY_URL_TAG);
-            writer.setValue(plugin.getScmRepositoryUrl());
-            writer.endNode();
-        }
+        addNode(SCM_NO_USER_COMMIT_MESSAGE, writer, Boolean.toString(plugin.isNoUserCommitMessage()));
+        addNode(SCM_DISPLAY_STATUS, writer, Boolean.toString(plugin.isDisplayStatus()));
 
-        writer.startNode(AbstractMigrator.SCM_NO_USER_COMMIT_MESSAGE);
-        writer.setValue(Boolean.toString(plugin.isNoUserCommitMessage()));
-        writer.endNode();
-
-        writer.startNode(AbstractMigrator.SCM_DISPLAY_STATUS);
-        writer.setValue(Boolean.toString(plugin.isDisplayStatus()));
-        writer.endNode();
-
-        if (plugin.getCommitMessagePattern() != null) {
-            writer.startNode(AbstractMigrator.SCM_COMMIT_MESSAGE_PATTERN);
-            writer.setValue(plugin.getCommitMessagePattern());
-            writer.endNode();
-        }
-
+        if (plugin.getCommitMessagePattern() != null)
+            addNode(SCM_COMMIT_MESSAGE_PATTERN, writer, plugin.getCommitMessagePattern());
         if (plugin.getManualSynchronizationIncludes() != null) {
-            writer.startNode(AbstractMigrator.SCM_MANUAL_INCLUDES);
-            for (String include : plugin.getManualSynchronizationIncludes()) {
-                writer.startNode("include");
-                writer.setValue(include);
-                writer.endNode();
-            }
+            writer.startNode(SCM_MANUAL_INCLUDES.name());
+            for (String include : plugin.getManualSynchronizationIncludes())
+                addNode("include", writer, include);
             writer.endNode();
         }
+    }
+
+    private static void addAttribute(final HierarchicalStreamWriter writer, final ScmSyncConfigurationPlugin plugin) {
+        writer.startNode(SCM_TAG.name());
+        writer.addAttribute(SCM_CLASS_ATTRIBUTE.name(), plugin.getSCM().getId());
+        writer.endNode();
+    }
+
+    private static void addNode(AbstractMigrator.ScmSyncConfiguration scmDisplayStatus, HierarchicalStreamWriter writer, String s) {
+        addNode(scmDisplayStatus.name(), writer, s);
+    }
+
+    private static void addNode(String start, HierarchicalStreamWriter writer, String value) {
+        writer.startNode(start);
+        writer.setValue(value);
+        writer.endNode();
     }
 
     /**
      * Will transform scm sync configuration XStream data representation into
      * current ScmSyncConfigurationPlugin instance
      */
+    @SuppressWarnings("deprecation")
     public Object unmarshal(HierarchicalStreamReader reader,
                             UnmarshallingContext context) {
 
-        ScmSyncConfigurationPlugin plugin;
-        if (context.currentObject() == null || !(context.currentObject() instanceof ScmSyncConfigurationPlugin)) {
-            // This should never happen to get here
-            plugin = new ScmSyncConfigurationPlugin();
-        } else {
-            // Retrieving already instantiated ScmSyncConfiguration plugin into current context ..
-            plugin = (ScmSyncConfigurationPlugin) context.currentObject();
-        }
+        final ScmSyncConfigurationPlugin plugin = (context.currentObject() == null
+                  || !(context.currentObject() instanceof ScmSyncConfigurationPlugin))
+                ? new ScmSyncConfigurationPlugin() :
+                (ScmSyncConfigurationPlugin) context.currentObject();
 
         // Retrieving data representation version number
-        String version = reader.getAttribute(VERSION_ATTRIBUTE);
+        final String version = reader.getAttribute(VERSION_ATTRIBUTE);
         // Before version 1 (version 0), there wasn't any version in the scm sync configuration
         // configuration file
-        int versionNumber = 0;
-        if (version != null) {
-            versionNumber = Integer.parseInt(version);
-        }
+        int versionNumber = version != null ? Integer.parseInt(version) : 0;
 
-        if (versionNumber != getCurrentScmSyncConfigurationVersionNumber()) {
+        if (versionNumber != getCurrentScmSyncConfigurationVersionNumber())
             // There will be a data migration ..
-            LOGGER.info("Your version of persisted ScmSyncConfigurationPlugin data is not up-to-date (v" + versionNumber + " < v" + getCurrentScmSyncConfigurationVersionNumber() + ") : data will be migrated !");
-        }
+            LOGGER.info(String.format(
+                    "Your version of persisted ScmSyncConfigurationPlugin data" +
+                    " is not up-to-date (v%s < v%s) : data will be migrated !",
+                    versionNumber,
+                    getCurrentScmSyncConfigurationVersionNumber()));
 
         // Calling version's reader to read data representation
-        ScmSyncConfigurationPOJO pojo = MIGRATORS[versionNumber].readScmSyncConfigurationPOJO(reader, context);
-
-        // Migrating old data into up-to-date data
-        // Added "+1" because we take into consideration InitialMigrator
-        for (int i = versionNumber + 1; i < getCurrentScmSyncConfigurationVersionNumber() + 1; i++) {
-            pojo = MIGRATORS[i].migrate(pojo);
-        }
-
+        final ScmSyncConfigurationPOJO pojo = unsafeGetScmSyncConfigurationPOJO(
+                versionNumber,
+                MIGRATORS[versionNumber].readScmSyncConfigurationPOJO(reader));
         // Populating latest POJO information into ScmSyncConfigurationPlugin
         plugin.loadData(pojo);
-
         return plugin;
+    }
+
+    // TODO: Figure out another way to do this, this is a very unsafe way to handle this migration...
+    @Deprecated
+    @SuppressWarnings("unchecked")
+    private static ScmSyncConfigurationPOJO unsafeGetScmSyncConfigurationPOJO(int versionNumber, ScmSyncConfigurationPOJO pojo) {
+        // Migrating old data into up-to-date data
+        // Added "+1" because we take into consideration InitialMigrator
+        for (int i = versionNumber + 1; i <= getCurrentScmSyncConfigurationVersionNumber(); i++)
+            pojo = MIGRATORS[i].migrate(pojo);
+        return pojo;
     }
 }

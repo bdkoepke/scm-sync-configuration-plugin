@@ -1,6 +1,5 @@
 package hudson.plugins.scm_sync_configuration.strategies.impl;
 
-import hudson.XmlFile;
 import hudson.model.Item;
 import hudson.model.Saveable;
 import hudson.model.User;
@@ -35,7 +34,7 @@ public class UserConfigScmSyncStrategy extends AbstractScmSyncStrategy {
     public CommitMessageFactory getCommitMessageFactory() {
         return new CommitMessageFactory() {
             @Override
-            public WeightedMessage getMessageWhenSaveableUpdated(final Saveable s, final XmlFile file) {
+            public WeightedMessage getMessageWhenSaveableUpdated(final Saveable s) {
                 return new WeightedMessage(
                         String.format("User [%s] configuration updated", ((User) s).getDisplayName()),
                         // Job config update message should be considered as "important", especially

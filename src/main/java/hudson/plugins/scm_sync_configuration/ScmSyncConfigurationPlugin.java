@@ -1,9 +1,6 @@
 package hudson.plugins.scm_sync_configuration;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
 import hudson.Plugin;
-import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
 import hudson.model.Hudson;
 import hudson.model.Saveable;
@@ -22,13 +19,8 @@ import hudson.plugins.scm_sync_configuration.xstream.ScmSyncConfigurationXStream
 import hudson.plugins.scm_sync_configuration.xstream.migration.ScmSyncConfigurationPOJO;
 import hudson.util.PluginServletFilter;
 import net.sf.json.JSONObject;
-import org.acegisecurity.AccessDeniedException;
-import org.apache.maven.scm.ScmException;
-import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
 
-import javax.annotation.Nullable;
 import javax.servlet.ServletException;
 import java.io.File;
 import java.io.IOException;
@@ -39,8 +31,7 @@ import java.util.concurrent.Future;
 import java.util.logging.Logger;
 
 public class ScmSyncConfigurationPlugin extends Plugin {
-
-    public static final transient ScmSyncStrategy[] AVAILABLE_STRATEGIES = new ScmSyncStrategy[]{
+    private static final ScmSyncStrategy[] AVAILABLE_STRATEGIES = new ScmSyncStrategy[]{
             new JenkinsConfigScmSyncStrategy(),
             new BasicPluginsConfigScmSyncStrategy(),
             new JobConfigScmSyncStrategy(),
@@ -48,16 +39,6 @@ public class ScmSyncConfigurationPlugin extends Plugin {
             new ManualIncludesScmSyncStrategy()
     };
 
-    /**
-     * Strategies that cannot be updated by user
-     */
-    public static final transient List<ScmSyncStrategy> DEFAULT_STRATEGIES = new ArrayList<ScmSyncStrategy>() {{
-        addAll(Collections2.filter(Arrays.asList(AVAILABLE_STRATEGIES), new Predicate<ScmSyncStrategy>() {
-            public boolean apply(@Nullable ScmSyncStrategy scmSyncStrategy) {
-                return !(scmSyncStrategy instanceof ManualIncludesScmSyncStrategy);
-            }
-        }));
-    }};
     private static final Logger LOGGER = Logger.getLogger(ScmSyncConfigurationPlugin.class.getName());
     private transient ScmSyncConfigurationBusiness business;
     /**
@@ -70,7 +51,7 @@ public class ScmSyncConfigurationPlugin extends Plugin {
      * an AtomicTransaction (each time a change is recorded, it will be immediately commited).
      * Every time a transaction will be commited, it will be resetted to null
      */
-    private transient ThreadLocal<ScmTransaction> transaction = new ThreadLocal<ScmTransaction>();
+    private final transient ThreadLocal<ScmTransaction> transaction = new ThreadLocal<>();
     private transient Future<Void> latestCommitFuture;
     private String scmRepositoryUrl;
     private SCM scm;
@@ -87,7 +68,7 @@ public class ScmSyncConfigurationPlugin extends Plugin {
         this(false);
     }
 
-    public ScmSyncConfigurationPlugin(boolean synchronousTransactions) {
+    public ScmSyncConfigurationPlugin(final boolean synchronousTransactions) {
         this.synchronousTransactions = synchronousTransactions;
         setBusiness(new ScmSyncConfigurationBusiness());
 
@@ -98,6 +79,7 @@ public class ScmSyncConfigurationPlugin extends Plugin {
         }
     }
 
+    @SuppressWarnings("deprecation")
     public static ScmSyncConfigurationPlugin getInstance() {
         return Hudson.getInstance().getPlugin(ScmSyncConfigurationPlugin.class);
     }
@@ -159,6 +141,8 @@ public class ScmSyncConfigurationPlugin extends Plugin {
             throws IOException, ServletException, FormException {
         super.configure(req, formData);
 
+        //TODO: simplify...
+
         boolean repoInitializationRequired = false;
         boolean configsResynchronizationRequired = false;
         boolean repoCleaningRequired = false;
@@ -167,11 +151,12 @@ public class ScmSyncConfigurationPlugin extends Plugin {
         this.displayStatus = formData.getBoolean("displayStatus");
         this.commitMessagePattern = req.getParameter("commitMessagePattern");
 
-        String oldScmRepositoryUrl = this.scmRepositoryUrl;
-        String scmType = req.getParameter("scm");
+        final String oldScmRepositoryUrl = this.scmRepositoryUrl;
+        final String scmType = req.getParameter("scm");
         if (scmType != null) {
             this.scm = SCM.valueOf(scmType);
-            String newScmRepositoryUrl = this.scm.createScmUrlFromRequest(req);
+            assert this.scm != null;
+            final String newScmRepositoryUrl = this.scm.createScmUrlFromRequest(req);
 
             this.scmRepositoryUrl = newScmRepositoryUrl;
 
@@ -182,30 +167,24 @@ public class ScmSyncConfigurationPlugin extends Plugin {
         }
 
         if (req.getParameterValues("manualSynchronizationIncludes") != null) {
-            List<String> submittedManualIncludes = new ArrayList<String>(Arrays.asList(req.getParameterValues("manualSynchronizationIncludes")));
-            List<String> newManualIncludes = new ArrayList<String>(submittedManualIncludes);
-            if (this.manualSynchronizationIncludes != null) {
+            final List<String> submittedManualIncludes = new ArrayList<>(Arrays.asList(req.getParameterValues("manualSynchronizationIncludes")));
+            final List<String> newManualIncludes = new ArrayList<>(submittedManualIncludes);
+            if (this.manualSynchronizationIncludes != null)
                 newManualIncludes.removeAll(this.manualSynchronizationIncludes);
-            }
             this.manualSynchronizationIncludes = submittedManualIncludes;
-
             configsResynchronizationRequired = !newManualIncludes.isEmpty();
-        } else {
-            this.manualSynchronizationIncludes = new ArrayList<String>();
-        }
+        } else
+            this.manualSynchronizationIncludes = new ArrayList<>();
 
         // Repo initialization should be made _before_ plugin save, in order to let scm-sync-configuration.xml
         // file synchronizable
-        if (repoInitializationRequired) {
+        if (repoInitializationRequired)
             this.business.initializeRepository(createScmContext(), true);
-        }
-        if (configsResynchronizationRequired) {
+        if (configsResynchronizationRequired)
             this.business.synchronizeAllConfigs(AVAILABLE_STRATEGIES);
-        }
-        if (repoCleaningRequired) {
+        if (repoCleaningRequired)
             // Cleaning checkouted repository
             this.business.cleanChekoutScmDirectory();
-        }
 
         // Persisting plugin data
         // Note that save() is made _after_ the synchronizeAllConfigs() because, otherwise, scm-sync-configuration.xml
@@ -213,91 +192,21 @@ public class ScmSyncConfigurationPlugin extends Plugin {
         this.save();
     }
 
-    public void doReloadAllFilesFromScm(StaplerRequest req, StaplerResponse res) throws ServletException, IOException {
-        try {
-            filesModifiedByLastReload = business.reloadAllFilesFromScm();
-            req.getView(this, "/hudson/plugins/scm_sync_configuration/reload.jelly").forward(req, res);
-        } catch (ScmException e) {
-            throw new ServletException("Unable to reload SCM " + scm.getTitle() + ":" + getScmUrl(), e);
-        }
-    }
-
-    public void doSubmitComment(StaplerRequest req, StaplerResponse res) throws ServletException, IOException {
-        // TODO: complexify this in order to pass a strategy identifier in the session key
-        ScmSyncConfigurationDataProvider.provideComment(req.getParameter("comment"));
-        if (Boolean.valueOf(req.getParameter("dontBotherMe")).booleanValue()) {
-            ScmSyncConfigurationDataProvider.provideBotherTimeout(req.getParameter("botherType"),
-                    Integer.valueOf(req.getParameter("botherTime")), req.getParameter("currentURL"));
-        }
-    }
-
-    // TODO: do retrieve help file with an action !
-    public void doHelpForRepositoryUrl(StaplerRequest req, StaplerResponse res) throws ServletException, IOException {
-        req.getView(this, SCM.valueOf(req.getParameter("scm")).getRepositoryUrlHelpPath()).forward(req, res);
-    }
-
-    // Help url for manualSynchronizationIncludes field is a jelly script and not a html file
-    // because we need default includes list to be displayed in it !
-    public void doManualIncludesHelp(StaplerRequest req, StaplerResponse res) throws ServletException, IOException {
-        req.getView(this, "/hudson/plugins/scm_sync_configuration/ScmSyncConfigurationPlugin/help/manualSynchronizationIncludes.jelly").forward(req, res);
-    }
-
-    public void doSynchronizeFile(@QueryParameter String path) {
-        getTransaction().registerPath(path);
-    }
-
-    public List<String> getDefaultIncludes() {
-        List<String> includes = new ArrayList<String>();
-        for (ScmSyncStrategy strategy : DEFAULT_STRATEGIES) {
-            includes.addAll(strategy.getSyncIncludes());
-        }
-        return includes;
-    }
-
+    @SuppressWarnings("deprecation")
     private User getCurrentUser() {
-        User user = null;
-        try {
-            user = Hudson.getInstance().getMe();
-        } catch (AccessDeniedException e) {
-        }
-        return user;
+        return Hudson.getInstance().getMe();
     }
 
-    public ScmSyncStrategy getStrategyForSaveable(Saveable s, File f) {
-        for (ScmSyncStrategy strat : AVAILABLE_STRATEGIES) {
-            if (strat.isSaveableApplicable(s, f)) {
+    public ScmSyncStrategy getStrategyForSaveable(final Saveable s, final File f) {
+        for (ScmSyncStrategy strat : AVAILABLE_STRATEGIES)
+            if (strat.isSaveableApplicable(s, f))
                 return strat;
-            }
-        }
         // Strategy not found !
         return null;
     }
 
-    public ScmContext createScmContext() {
+    private ScmContext createScmContext() {
         return new ScmContext(this.scm, this.scmRepositoryUrl, this.commitMessagePattern);
-    }
-
-    public boolean shouldDecorationOccursOnURL(String url) {
-        // Removing comment from session here...
-        ScmSyncConfigurationDataProvider.retrieveComment(true);
-
-        // Displaying commit message popup is based on following tests :
-        // Zero : never ask for a commit message
-        // First : no botherTimeout should match with current url
-        // Second : a strategy should exist, matching current url
-        // Third : SCM Sync should be settled up
-        return !noUserCommitMessage && ScmSyncConfigurationDataProvider.retrieveBotherTimeoutMatchingUrl(url) == null
-                && getStrategyForURL(url) != null && this.business.scmCheckoutDirectorySettledUp(createScmContext());
-    }
-
-    public ScmSyncStrategy getStrategyForURL(String url) {
-        for (ScmSyncStrategy strat : AVAILABLE_STRATEGIES) {
-            if (strat.isCurrentUrlApplicable(url)) {
-                return strat;
-            }
-        }
-        // Strategy not found !
-        return null;
     }
 
     public boolean isNoUserCommitMessage() {
@@ -312,32 +221,12 @@ public class ScmSyncConfigurationPlugin extends Plugin {
         this.business = business;
     }
 
-    public ScmSyncConfigurationStatusManager getScmSyncConfigurationStatusManager() {
-        return business.getScmSyncConfigurationStatusManager();
-    }
-
     public String getScmRepositoryUrl() {
         return scmRepositoryUrl;
     }
 
-    public boolean isScmSelected(SCM _scm) {
-        return this.scm == _scm;
-    }
-
     public SCM getSCM() {
         return this.scm;
-    }
-
-    public String getScmUrl() {
-        if (this.scm != null) {
-            return this.scm.extractScmUrlFrom(this.scmRepositoryUrl);
-        } else {
-            return null;
-        }
-    }
-
-    public List<File> getFilesModifiedByLastReload() {
-        return filesModifiedByLastReload;
     }
 
     public boolean isDisplayStatus() {
@@ -348,22 +237,20 @@ public class ScmSyncConfigurationPlugin extends Plugin {
         return commitMessagePattern;
     }
 
-    public Descriptor<? extends hudson.scm.SCM> getDescriptorForSCM(String scmName) {
-        return SCM.valueOf(scmName).getSCMDescriptor();
-    }
-
     public void startThreadedTransaction() {
         this.setTransaction(new ThreadedTransaction(synchronousTransactions));
     }
 
-    public Future<Void> commitChangeset(ChangeSet changeset) {
+    public void commitChangeset(ChangeSet changeset) {
         try {
-            if (!changeset.isEmpty()) {
-                latestCommitFuture = this.business.queueChangeSet(createScmContext(), changeset, getCurrentUser(), ScmSyncConfigurationDataProvider.retrieveComment(false));
-                return latestCommitFuture;
-            } else {
-                return null;
-            }
+            return changeset.isEmpty() ?
+                    null :
+                    (latestCommitFuture =
+                            this.business.queueChangeSet(
+                                    createScmContext(),
+                                    changeset,
+                                    getCurrentUser(),
+                                    ScmSyncConfigurationDataProvider.retrieveComment()));
         } finally {
             // Reinitializing transaction once commited
             this.setTransaction(null);
@@ -371,16 +258,14 @@ public class ScmSyncConfigurationPlugin extends Plugin {
     }
 
     public ScmTransaction getTransaction() {
-        if (transaction.get() == null) {
+        if (transaction.get() == null)
             setTransaction(new AtomicTransaction(synchronousTransactions));
-        }
         return transaction.get();
     }
 
-    protected void setTransaction(ScmTransaction transactionToRegister) {
-        if (transaction.get() != null && transactionToRegister != null) {
+    private void setTransaction(ScmTransaction transactionToRegister) {
+        if (transaction.get() != null && transactionToRegister != null)
             LOGGER.warning("Existing threaded transaction will be overriden !");
-        }
         transaction.set(transactionToRegister);
     }
 

@@ -7,9 +7,9 @@ import org.kohsuke.stapler.bind.JavaScriptMethod;
 
 @SuppressWarnings("unused")
 @Extension
-public class ScmSyncConfigurationPageDecorator extends PageDecorator {
+class ScmSyncConfigurationPageDecorator extends PageDecorator {
 
-    public ScmSyncConfigurationPlugin getScmSyncConfigPlugin() {
+    private ScmSyncConfigurationPlugin getScmSyncConfigPlugin() {
         return ScmSyncConfigurationPlugin.getInstance();
     }
 

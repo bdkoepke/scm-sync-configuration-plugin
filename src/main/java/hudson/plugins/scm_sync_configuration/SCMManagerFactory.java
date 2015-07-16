@@ -3,7 +3,6 @@ package hudson.plugins.scm_sync_configuration;
 import org.apache.maven.scm.manager.ScmManager;
 import org.codehaus.plexus.DefaultPlexusContainer;
 import org.codehaus.plexus.PlexusContainer;
-import org.codehaus.plexus.PlexusContainerException;
 import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 
 public class SCMManagerFactory {
@@ -17,7 +16,7 @@ public class SCMManagerFactory {
         return INSTANCE;
     }
 
-    public void start() throws PlexusContainerException {
+    public void start() {
         if (plexus == null)
             this.plexus = new DefaultPlexusContainer();
     }
@@ -26,7 +25,7 @@ public class SCMManagerFactory {
         return (ScmManager) this.plexus.lookup(ScmManager.ROLE);
     }
 
-    public void stop() throws Exception {
+    public void stop() {
         this.plexus.dispose();
         this.plexus = null;
     }

@@ -7,12 +7,10 @@ import hudson.plugins.scm_sync_configuration.exceptions.LoggableException;
 import hudson.plugins.scm_sync_configuration.model.*;
 import hudson.plugins.scm_sync_configuration.strategies.ScmSyncStrategy;
 import hudson.plugins.scm_sync_configuration.utils.Checksums;
-import hudson.security.Permission;
 import hudson.util.DaemonThreadFactory;
 import org.apache.commons.io.FileUtils;
 import org.apache.maven.scm.ScmException;
 import org.apache.maven.scm.manager.ScmManager;
-import org.codehaus.plexus.PlexusContainerException;
 import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 
 import java.io.File;
@@ -42,16 +40,9 @@ public class ScmSyncConfigurationBusiness {
     private File checkoutScmDirectory = null;
     private ScmSyncConfigurationStatusManager scmSyncConfigurationStatusManager = null;
 
-    public ScmSyncConfigurationBusiness() {
-    }
-
+    @SuppressWarnings("deprecation")
     public static String getCheckoutScmDirectoryAbsolutePath() {
         return Hudson.getInstance().getRootDir().getAbsolutePath() + WORKING_DIRECTORY_PATH + CHECKOUT_SCM_DIRECTORY;
-    }
-
-    private static Permission purgeFailLogPermission() {
-        // Only administrators should be able to purge logs
-        return Hudson.ADMINISTER;
     }
 
     public ScmSyncConfigurationStatusManager getScmSyncConfigurationStatusManager() {
@@ -60,7 +51,7 @@ public class ScmSyncConfigurationBusiness {
                 scmSyncConfigurationStatusManager;
     }
 
-    public void init(final ScmContext scmContext) throws ComponentLookupException, PlexusContainerException {
+    public void init(final ScmContext scmContext) throws ComponentLookupException {
         final ScmManager scmManager = SCMManagerFactory.getInstance().createScmManager();
         this.scmManipulator = new SCMManipulator(scmManager);
         this.checkoutScmDirectory = new File(getCheckoutScmDirectoryAbsolutePath());
@@ -79,22 +70,25 @@ public class ScmSyncConfigurationBusiness {
             cleanChekoutScmDirectory();
 
         // Creating checkout scm directory
-        if (!checkoutScmDirectory.exists()) {
-            String created = "";
-            try {
-                FileUtils.forceMkdir(checkoutScmDirectory);
-                LOGGER.info("Directory [" + checkoutScmDirectory.getAbsolutePath() + "] created !");
-            } catch (IOException ignored) {
-                created = " could not not be";
-            } finally {
-                LOGGER.warning(String.format("Directory [%s]%s created !", checkoutScmDirectory.getAbsolutePath(), created));
-            }
-        }
+        if (!checkoutScmDirectory.exists())
+            createScmDirectory();
 
         this.checkoutSucceeded = this.scmManipulator.checkout(this.checkoutScmDirectory);
         if (this.checkoutSucceeded)
             LOGGER.info("SCM repository initialization done.");
         signal("Checkout " + this.checkoutScmDirectory, this.checkoutSucceeded);
+    }
+
+    private void createScmDirectory() {
+        String created = "";
+        try {
+            FileUtils.forceMkdir(this.checkoutScmDirectory);
+            LOGGER.info(String.format("Directory [%s] created!", checkoutScmDirectory.getAbsolutePath()));
+        } catch (IOException ignored) {
+            created = " could not not be";
+        } finally {
+            LOGGER.warning(String.format("Directory [%s]%s created !", checkoutScmDirectory.getAbsolutePath(), created));
+        }
     }
 
     public void cleanChekoutScmDirectory() {
@@ -112,28 +106,31 @@ public class ScmSyncConfigurationBusiness {
         this.checkoutSucceeded = false;
     }
 
-    public List<File> deleteHierarchy(ScmContext scmContext, Path hierarchyPath) {
+    private List<File> deleteHierarchy(ScmContext scmContext, Path hierarchyPath) {
         if (scmManipulator == null || !scmManipulator.scmConfigurationSettledUp(scmContext, false))
             return null;
 
         final File rootHierarchyTranslatedInScm = hierarchyPath.getScmFile();
         final List<File> filesToCommit = scmManipulator.deleteHierarchy(rootHierarchyTranslatedInScm);
-        // Once done, we should delete path in scm if it is a directory
         if (hierarchyPath.isDirectory())
-            try {
-                FileUtils.deleteDirectory(rootHierarchyTranslatedInScm);
-            } catch (IOException e) {
-                throw new LoggableException(String.format(
-                        "Failed to recursively delete scm directory %s",
-                        rootHierarchyTranslatedInScm.getAbsolutePath()),
-                        FileUtils.class, "deleteDirectory", e);
-            }
+            deleteScmPath(rootHierarchyTranslatedInScm);
 
         signal(String.format("Delete %s", hierarchyPath), filesToCommit != null);
         return filesToCommit;
     }
 
-    public Future<Void> queueChangeSet(final ScmContext scmContext, ChangeSet changeset, User user, String userMessage) {
+    private static void deleteScmPath(File rootHierarchyTranslatedInScm) {
+        try {
+            FileUtils.deleteDirectory(rootHierarchyTranslatedInScm);
+        } catch (IOException e) {
+            throw new LoggableException(String.format(
+                    "Failed to recursively delete scm directory %s",
+                    rootHierarchyTranslatedInScm.getAbsolutePath()),
+                    FileUtils.class, "deleteDirectory", e);
+        }
+    }
+
+    public Future<Void> queueChangeSet(final ScmContext scmContext, final ChangeSet changeset, final User user, final String userMessage) {
         if (scmManipulator == null || !scmManipulator.scmConfigurationSettledUp(scmContext, false)) {
             LOGGER.info(String.format("Queue of changeset %s aborted (scm manipulator not settled !)", changeset.toString()));
             return null;
@@ -154,81 +151,89 @@ public class ScmSyncConfigurationBusiness {
         final File scmRoot = new File(getCheckoutScmDirectoryAbsolutePath());
 
         // Copying shared commitQueue in order to allow conccurrent modification
-        final List<Commit> currentCommitQueue = new ArrayList<>(commitsQueue);
+        final List<Commit> currentCommitQueue;
+        synchronized (commitsQueue) {
+            currentCommitQueue = new ArrayList<>(commitsQueue);
+        }
         final List<Commit> checkedInCommits = new ArrayList<>();
 
         try {
             // Reading commit queue and commiting changeset
-            for (final Commit commit : currentCommitQueue) {
+            for(final Commit commit: currentCommitQueue){
                 final String logMessage = "Processing commit : " + commit.toString();
                 LOGGER.finest(logMessage);
-
                 // Preparing files to add / delete
+                //
+                // Two points:
+                // 1. getPathContents() already returns only those paths that are not also to be deleted.
+                // 2. For svn, we must not run svn add for files already in the repo. For git, we should run git add to stage the
+                //    change. The second happens to work per chance because the git checkIn implementation will use git commit -a
+                //    if a file set without files but only some directory is given, which we do.
                 final List<File> updatedFiles = new ArrayList<>();
-                for (final Map.Entry<Path, byte[]> pathContent : commit.getChangeset().getPathContents().entrySet()) {
+
+                for(Map.Entry<Path,byte[]> pathContent : commit.getChangeset().getPathContents().entrySet()){
                     final Path pathRelativeToJenkinsRoot = pathContent.getKey();
                     final byte[] content = pathContent.getValue();
 
                     final File fileTranslatedInScm = pathRelativeToJenkinsRoot.getScmFile();
-                    if (pathRelativeToJenkinsRoot.isDirectory()) {
-                        if (!fileTranslatedInScm.exists()) {
+                    if(pathRelativeToJenkinsRoot.isDirectory()) {
+                        if(!fileTranslatedInScm.exists()){
                             // Retrieving non existing parent scm path *before* copying it from jenkins directory
-                            String firstNonExistingParentScmPath = pathRelativeToJenkinsRoot.getFirstNonExistingParentScmPath();
+                            final String firstNonExistingParentScmPath = pathRelativeToJenkinsRoot.getFirstNonExistingParentScmPath();
 
                             try {
                                 FileUtils.copyDirectory(JenkinsFilesHelper.buildFileFromPathRelativeToHudsonRoot(pathRelativeToJenkinsRoot.getPath()),
                                         fileTranslatedInScm);
                             } catch (IOException e) {
-                                throw new LoggableException("Error while copying file hierarchy to SCM checkouted directory", FileUtils.class, "copyDirectory", e);
+                                throw new LoggableException("Error while copying file hierarchy to SCM directory", FileUtils.class, "copyDirectory", e);
                             }
                             updatedFiles.addAll(scmManipulator.addFile(scmRoot, firstNonExistingParentScmPath));
                         }
                     } else {
                         // We should remember if file in scm existed or not before any manipulation,
                         // especially writing content
-                        boolean fileTranslatedInScmInitiallyExists = fileTranslatedInScm.exists();
+                        final boolean fileTranslatedInScmInitiallyExists = fileTranslatedInScm.exists();
 
-                        boolean fileContentModified = writeScmContentOnlyIfItDiffers(pathRelativeToJenkinsRoot, content, fileTranslatedInScm);
-                        if (fileTranslatedInScmInitiallyExists) {
-                            if (fileContentModified) {
-                                // No need to call scmManipulator.addFile() if fileTranslatedInScm already existed
-                                updatedFiles.add(fileTranslatedInScm);
-                            }
-                        } else {
+                        final boolean fileContentModified = writeScmContentOnlyIfItDiffers(pathRelativeToJenkinsRoot, content, fileTranslatedInScm);
+                        if(! fileTranslatedInScmInitiallyExists) {
                             updatedFiles.addAll(scmManipulator.addFile(scmRoot, pathRelativeToJenkinsRoot.getPath()));
+                            return;
                         }
+                        if(! fileContentModified)
+                            return;
+                        updatedFiles.add(fileTranslatedInScm);
                     }
                 }
-                for (Path path : commit.getChangeset().getPathsToDelete()) {
-                    List<File> deletedFiles = deleteHierarchy(commit.getScmContext(), path);
-                    updatedFiles.addAll(deletedFiles);
+
+                for(final Path path : commit.getChangeset().getPathsToDelete()){
+                    final List<File> deletedFiles = deleteHierarchy(commit.getScmContext(), path);
+                    if (deletedFiles != null)
+                        updatedFiles.addAll(deletedFiles);
                 }
 
-                if (updatedFiles.isEmpty()) {
+                if(updatedFiles.isEmpty()){
                     LOGGER.finest("Empty changeset to commit (no changes found on files) => commit skipped !");
                     checkedInCommits.add(commit);
-                } else {
-                    // Commiting files...
-                    boolean result = scmManipulator.checkinFiles(scmRoot, commit.getMessage());
-
-                    if (result) {
-                        LOGGER.finest("Commit " + commit.toString() + " pushed to SCM !");
-                        checkedInCommits.add(commit);
-                    } else {
-                        throw new LoggableException("Error while checking in file to scm repository", SCMManipulator.class, "checkinFiles");
-                    }
-
-                    signal(logMessage, true);
+                    return;
                 }
+
+                if (! scmManipulator.checkinFiles(scmRoot, commit.getMessage()))
+                    throw new LoggableException("Error while checking in file to scm repository", SCMManipulator.class, "checkinFiles");
+
+                LOGGER.finest("Commit "+commit.toString()+" pushed to SCM !");
+                checkedInCommits.add(commit);
+                signal(logMessage, true);
             }
             // As soon as a commit doesn't goes well, we should abort commit queue processing...
-        } catch (LoggableException e) {
+        } catch(LoggableException e) {
             LOGGER.throwing(e.getClazz().getName(), e.getMethodName(), e);
-            LOGGER.severe("Error while processing commit queue : " + e.getMessage());
+            LOGGER.severe(String.format("Error while processing commit queue : %s", e.getMessage()));
             signal(e.getMessage(), false);
         } finally {
             // We should remove every checkedInCommits
-            commitsQueue.removeAll(checkedInCommits);
+            synchronized (commitsQueue) {
+                commitsQueue.removeAll(checkedInCommits);
+            }
         }
     }
 
@@ -236,7 +241,8 @@ public class ScmSyncConfigurationBusiness {
             final Path pathRelativeToJenkinsRoot,
             final byte[] content,
             final File fileTranslatedInScm)
-            throws LoggableException {
+            throws LoggableException
+    {
         try {
             final boolean contentDiffer = !Checksums.fileAndByteArrayContentAreEqual(fileTranslatedInScm, content);
             if (contentDiffer)
@@ -262,33 +268,31 @@ public class ScmSyncConfigurationBusiness {
         }
         while (!directoriesToCreate.empty()) {
             directory = directoriesToCreate.pop();
-            if (!directory.mkdir()) {
+            if (!directory.mkdir())
                 throw new LoggableException("Error while creating directory " + directory.getAbsolutePath(), File.class, "mkdir");
-            }
         }
 
         try {
             // Copying content if pathRelativeToJenkinsRoot is a file, or creating the directory if it is a directory
-            if (pathRelativeToJenkinsRoot.isDirectory()) {
-                if (!fileTranslatedInScm.mkdir()) {
-                    throw new LoggableException("Error while creating directory " + fileTranslatedInScm.getAbsolutePath(), File.class, "mkdir");
-                }
-            } else {
+            if (! pathRelativeToJenkinsRoot.isDirectory()) {
                 Files.write(content, fileTranslatedInScm);
+                return;
             }
+
+            if (!fileTranslatedInScm.mkdir())
+                throw new LoggableException("Error while creating directory " + fileTranslatedInScm.getAbsolutePath(), File.class, "mkdir");
         } catch (IOException e) {
             throw new LoggableException("Error while creating file in checkouted directory", Files.class, "write", e);
         }
     }
 
     public void synchronizeAllConfigs(ScmSyncStrategy[] availableStrategies) {
-        List<File> filesToSync = new ArrayList<File>();
+        final List<File> filesToSync = new ArrayList<>();
         // Building synced files from strategies
-        for (ScmSyncStrategy strategy : availableStrategies) {
+        for (ScmSyncStrategy strategy : availableStrategies)
             filesToSync.addAll(strategy.createInitializationSynchronizedFileset());
-        }
 
-        ScmSyncConfigurationPlugin plugin = ScmSyncConfigurationPlugin.getInstance();
+        final ScmSyncConfigurationPlugin plugin = ScmSyncConfigurationPlugin.getInstance();
         plugin.startThreadedTransaction();
         try {
             for (File fileToSync : filesToSync) {
@@ -311,50 +315,50 @@ public class ScmSyncConfigurationBusiness {
         return syncDirectories(new File(getCheckoutScmDirectoryAbsolutePath() + File.separator), "");
     }
 
-    private List<File> syncDirectories(File from, String relative) throws IOException {
-        List<File> l = new ArrayList<File>();
+    @SuppressWarnings("deprecation")
+    private List<File> syncDirectories(final File from, final String relative) throws IOException {
+        final List<File> l = new ArrayList<>();
+        if (from == null || from.listFiles() == null)
+            return l;
+        //noinspection ConstantConditions
         for (File f : from.listFiles()) {
             String newRelative = relative + File.separator + f.getName();
             File jenkinsFile = new File(Hudson.getInstance().getRootDir() + newRelative);
-            if (f.getName().equals(scmManipulator.getScmSpecificFilename())) {
-                // nothing to do
-            } else if (f.isDirectory()) {
-                if (!jenkinsFile.exists()) {
-                    FileUtils.copyDirectory(f, jenkinsFile, new FileFilter() {
-
-                        public boolean accept(File f) {
-                            return !f.getName().equals(scmManipulator.getScmSpecificFilename());
-                        }
-
-                    });
-                    l.add(jenkinsFile);
-                } else {
+            if (f.getName().equals(scmManipulator.getScmSpecificFilename()))
+                continue;
+            if (f.isDirectory()) {
+                if (jenkinsFile.exists()) {
                     l.addAll(syncDirectories(f, newRelative));
+                    continue;
                 }
-            } else {
-                if (!jenkinsFile.exists() || !FileUtils.contentEquals(f, jenkinsFile)) {
-                    FileUtils.copyFile(f, jenkinsFile);
-                    l.add(jenkinsFile);
-                }
+                FileUtils.copyDirectory(f, jenkinsFile, new FileFilter() {
+                    public boolean accept(File f) {
+                        return !f.getName().equals(scmManipulator.getScmSpecificFilename());
+                    }
+                });
+                l.add(jenkinsFile);
+                continue;
+            }
+
+            if (!jenkinsFile.exists() || !FileUtils.contentEquals(f, jenkinsFile)) {
+                FileUtils.copyFile(f, jenkinsFile);
+                l.add(jenkinsFile);
             }
         }
         return l;
     }
 
     private void signal(String operation, boolean result) {
-        if (result) {
+        // TODO: replace with lambda in java8
+        if (result)
             getScmSyncConfigurationStatusManager().signalSuccess();
-        } else {
+        else
             getScmSyncConfigurationStatusManager().signalFailed(operation);
-        }
     }
 
+    @SuppressWarnings("deprecation")
     public void purgeFailLogs() {
-        Hudson.getInstance().checkPermission(purgeFailLogPermission());
+        Hudson.getInstance().checkPermission(Hudson.ADMINISTER);
         scmSyncConfigurationStatusManager.purgeFailLogs();
-    }
-
-    public boolean canCurrentUserPurgeFailLogs() {
-        return Hudson.getInstance().hasPermission(purgeFailLogPermission());
     }
 }

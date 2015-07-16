@@ -5,6 +5,7 @@ import hudson.model.Hudson;
 import java.io.File;
 
 public class JenkinsFilesHelper {
+    @SuppressWarnings("deprecation")
     public static String buildPathRelativeToHudsonRoot(final File file) {
         final File hudsonRoot = Hudson.getInstance().getRootDir();
         if (!file.getAbsolutePath().startsWith(hudsonRoot.getAbsolutePath()))
@@ -15,6 +16,7 @@ public class JenkinsFilesHelper {
                 .replaceAll("\\\\", "/");
     }
 
+    @SuppressWarnings("deprecation")
     public static File buildFileFromPathRelativeToHudsonRoot(final String pathRelativeToHudsonRoot) {
         final File hudsonRoot = Hudson.getInstance().getRootDir();
         return new File(String.format("%s%s%s",

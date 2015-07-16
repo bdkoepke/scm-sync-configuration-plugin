@@ -13,7 +13,7 @@ public abstract class ScmTransaction {
     // Synchronous commit are useful during tests execution
     private final boolean synchronousCommit;
 
-    protected ScmTransaction(final boolean synchronousCommit) {
+    ScmTransaction(final boolean synchronousCommit) {
         this.changeset = new ChangeSet();
         this.synchronousCommit = synchronousCommit;
     }

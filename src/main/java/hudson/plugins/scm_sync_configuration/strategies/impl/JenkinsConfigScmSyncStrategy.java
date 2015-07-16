@@ -1,6 +1,5 @@
 package hudson.plugins.scm_sync_configuration.strategies.impl;
 
-import hudson.XmlFile;
 import hudson.model.Item;
 import hudson.model.Saveable;
 import hudson.plugins.scm_sync_configuration.model.MessageWeight;
@@ -31,7 +30,7 @@ public class JenkinsConfigScmSyncStrategy extends AbstractScmSyncStrategy {
     public CommitMessageFactory getCommitMessageFactory() {
         return new CommitMessageFactory() {
             @Override
-            public WeightedMessage getMessageWhenSaveableUpdated(final Saveable s, final XmlFile file) {
+            public WeightedMessage getMessageWhenSaveableUpdated(final Saveable s) {
                 return new WeightedMessage(
                         "Jenkins configuration files updated",
                         MessageWeight.NORMAL);

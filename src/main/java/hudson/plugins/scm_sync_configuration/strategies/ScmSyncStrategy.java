@@ -1,6 +1,5 @@
 package hudson.plugins.scm_sync_configuration.strategies;
 
-import hudson.XmlFile;
 import hudson.model.Item;
 import hudson.model.Saveable;
 import hudson.plugins.scm_sync_configuration.model.WeightedMessage;
@@ -44,7 +43,7 @@ public interface ScmSyncStrategy {
     CommitMessageFactory getCommitMessageFactory();
 
     interface CommitMessageFactory {
-        WeightedMessage getMessageWhenSaveableUpdated(final Saveable s, final XmlFile file);
+        WeightedMessage getMessageWhenSaveableUpdated(final Saveable s);
 
         WeightedMessage getMessageWhenItemRenamed(final Item item, final String oldPath, final String newPath);
 
