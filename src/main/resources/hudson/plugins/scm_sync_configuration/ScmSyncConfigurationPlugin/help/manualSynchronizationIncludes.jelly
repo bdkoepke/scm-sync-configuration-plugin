@@ -1,15 +1,24 @@
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt">
+<j:jelly xmlns:j="jelly:core"
+        >
     <div>
-        ${%List of ant-like includes allowing to specify additionnal sync-ed files with repository}.<br/>
-        ${%Includes should be case sensitive paths starting from your JENKINS_HOME directory, without / in the beginning; Use of wildcards} (${%* and **}) ${%is allowed}.<br/>
-        ${%You can have a look at} <a href="https://wiki.jenkins-ci.org/display/JENKINS/SCM+Sync+Config+shared+additionnal+includes">${%community shared includes in Jenkins wiki}</a>, ${%feel free to share your owns on this page} !<br/>
+        ${%List of ant-like includes allowing to specify additionnal sync-ed files with repository}.
+        <br/>
+        ${%Includes should be case sensitive paths starting from your JENKINS_HOME directory, without / in the beginning; Use of wildcards}
+        (${%* and **}) ${%is allowed}.
+        <br/>
+        ${%You can have a look at}<a
+            href="https://wiki.jenkins-ci.org/display/JENKINS/SCM+Sync+Config+shared+additionnal+includes">
+        ${%community shared includes in Jenkins wiki}</a>, ${%feel free to share your owns on this page} !
+        <br/>
         ${%Before creating new includes, you should be aware of some things} :
         <ul>
             <li>
-                ${%Avoid includes for big and updated-often files} : ${%otherwise, your jenkins instance will spend its CPU time to commit your file}
+                ${%Avoid includes for big and updated-often files} :
+                ${%otherwise, your jenkins instance will spend its CPU time to commit your file}
             </li>
             <li>
-                ${%In order to be noticed at the right time, your files must be represented in Jenkins by a} <a href="http://javadoc.jenkins-ci.org/hudson/model/Saveable.html">Saveable</a>,
+                ${%In order to be noticed at the right time, your files must be represented in Jenkins by a}<a
+                    href="http://javadoc.jenkins-ci.org/hudson/model/Saveable.html">Saveable</a>,
                 ${%most of them are, but who knows}...
             </li>
             <li>

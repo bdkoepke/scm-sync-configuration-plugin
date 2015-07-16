@@ -6,7 +6,9 @@ import java.io.File;
 import java.util.List;
 
 public interface ConfigurationEntityMatcher {
-	public boolean matches(Saveable saveable, File file);
-    public String[] matchingFilesFrom(File rootDirectory);
+    boolean matches(final Saveable saveable, final File file);
+
+    String[] matchingFilesFrom(final File rootDirectory);
+
     List<String> getIncludes();
 }

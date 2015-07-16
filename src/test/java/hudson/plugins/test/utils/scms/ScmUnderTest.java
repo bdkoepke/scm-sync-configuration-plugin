@@ -6,14 +6,14 @@ import java.io.File;
 
 public interface ScmUnderTest {
 
-	void initRepo(File path) throws Exception;
-	
-	String createUrl(String url);
-	
-	Class<? extends SCM> getClazz();
-	
-	boolean useCredentials();
+    void initRepo(File path) throws Exception;
 
-	String getSuffixForTestFiles();
-	
+    String createUrl(String url);
+
+    Class<? extends SCM> getClazz();
+
+    boolean useCredentials();
+
+    String getSuffixForTestFiles();
+
 }

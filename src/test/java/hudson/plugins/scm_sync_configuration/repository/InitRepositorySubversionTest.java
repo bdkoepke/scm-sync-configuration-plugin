@@ -4,8 +4,8 @@ import hudson.plugins.test.utils.scms.ScmUnderTestSubversion;
 
 public class InitRepositorySubversionTest extends InitRepositoryTest {
 
-	public InitRepositorySubversionTest() {
-		super(new ScmUnderTestSubversion());
-	}
+    public InitRepositorySubversionTest() {
+        super(new ScmUnderTestSubversion());
+    }
 
 }

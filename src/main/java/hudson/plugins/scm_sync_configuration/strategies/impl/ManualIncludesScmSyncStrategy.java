@@ -10,22 +10,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ManualIncludesScmSyncStrategy extends AbstractScmSyncStrategy {
+    private static final List<PageMatcher> PAGE_MATCHERS = new ArrayList<>();
 
-	private static final List<PageMatcher> PAGE_MATCHERS = new ArrayList<PageMatcher>(){ {
-        // No page matcher for this particular implementation
-    } };
-
-	public ManualIncludesScmSyncStrategy(){
-		super(null, PAGE_MATCHERS);
-	}
+    public ManualIncludesScmSyncStrategy() {
+        super(null, PAGE_MATCHERS);
+    }
 
     @Override
-    protected ConfigurationEntityMatcher createConfigEntityMatcher(){
-        String[] includes = new String[0];
-        List<String> manualSynchronizationIncludes = ScmSyncConfigurationPlugin.getInstance().getManualSynchronizationIncludes();
-        if(manualSynchronizationIncludes != null){
-            includes = manualSynchronizationIncludes.toArray(new String[0]);
-        }
-        return new PatternsEntityMatcher(includes);
+    protected ConfigurationEntityMatcher createConfigEntityMatcher() {
+        final List<String> manualSynchronizationIncludes = ScmSyncConfigurationPlugin.getInstance().getManualSynchronizationIncludes();
+        return new PatternsEntityMatcher(manualSynchronizationIncludes == null ?
+                new String[0] :
+                manualSynchronizationIncludes.toArray(new String[manualSynchronizationIncludes.size()]));
     }
 }

@@ -15,32 +15,33 @@ import java.util.List;
 
 public class BasicPluginsConfigScmSyncStrategy extends AbstractScmSyncStrategy {
 
-	private static final List<PageMatcher> PAGE_MATCHERS = new ArrayList<PageMatcher>(){ {
-        // No page matchers for this strategy ... for the moment
-    } };
+    private static final List<PageMatcher> PAGE_MATCHERS = new ArrayList<>();
 
     private static final String[] PATTERNS = new String[]{
-        "hudson*.xml",
-        "scm-sync-configuration.xml"
+            "hudson*.xml",
+            "scm-sync-configuration.xml"
     };
 
-	private static final ConfigurationEntityMatcher CONFIG_ENTITY_MATCHER = new PatternsEntityMatcher(PATTERNS);
+    private static final ConfigurationEntityMatcher CONFIG_ENTITY_MATCHER = new PatternsEntityMatcher(PATTERNS);
 
-	public BasicPluginsConfigScmSyncStrategy(){
-		super(CONFIG_ENTITY_MATCHER, PAGE_MATCHERS);
-	}
+    public BasicPluginsConfigScmSyncStrategy() {
+        super(CONFIG_ENTITY_MATCHER, PAGE_MATCHERS);
+    }
 
-    public CommitMessageFactory getCommitMessageFactory(){
-        return new CommitMessageFactory(){
-            public WeightedMessage getMessageWhenSaveableUpdated(Saveable s, XmlFile file) {
+    public CommitMessageFactory getCommitMessageFactory() {
+        return new CommitMessageFactory() {
+            @Override
+            public WeightedMessage getMessageWhenSaveableUpdated(final Saveable s, final XmlFile file) {
                 return new WeightedMessage("Plugin configuration files updated", MessageWeight.MINIMAL);
             }
-            public WeightedMessage getMessageWhenItemRenamed(Item item, String oldPath, String newPath) {
-                // It should never happen... but who cares how will behave *every* plugin in the jenkins land ?
+
+            @Override
+            public WeightedMessage getMessageWhenItemRenamed(final Item item, final String oldPath, final String newPath) {
                 return new WeightedMessage("Plugin configuration files renamed", MessageWeight.MINIMAL);
             }
-            public WeightedMessage getMessageWhenItemDeleted(Item item) {
-                // It should never happen... but who cares how will behave *every* plugin in the jenkins land ?
+
+            @Override
+            public WeightedMessage getMessageWhenItemDeleted(final Item item) {
                 return new WeightedMessage("Plugin configuration files deleted", MessageWeight.MINIMAL);
             }
         };

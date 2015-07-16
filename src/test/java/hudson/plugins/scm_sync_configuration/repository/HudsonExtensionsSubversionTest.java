@@ -5,8 +5,8 @@ import hudson.plugins.test.utils.scms.ScmUnderTestSubversion;
 
 public class HudsonExtensionsSubversionTest extends HudsonExtensionsTest {
 
-	public HudsonExtensionsSubversionTest() {
-		super(new ScmUnderTestSubversion());
-	}
+    public HudsonExtensionsSubversionTest() {
+        super(new ScmUnderTestSubversion());
+    }
 
 }

@@ -5,18 +5,21 @@ import hudson.model.Hudson;
 import java.io.File;
 
 public class JenkinsFilesHelper {
+    public static String buildPathRelativeToHudsonRoot(final File file) {
+        final File hudsonRoot = Hudson.getInstance().getRootDir();
+        if (!file.getAbsolutePath().startsWith(hudsonRoot.getAbsolutePath()))
+            throw new IllegalArgumentException(String.format("Err ! File [%s] seems not to reside in [%s] !", file.getAbsoluteFile(), hudsonRoot.getAbsolutePath()));
+        return file
+                .getAbsolutePath()
+                .substring(hudsonRoot.getAbsolutePath().length() + 1)
+                .replaceAll("\\\\", "/");
+    }
 
-	public static String buildPathRelativeToHudsonRoot(File file){
-		File hudsonRoot = Hudson.getInstance().getRootDir();
-		if(!file.getAbsolutePath().startsWith(hudsonRoot.getAbsolutePath())){
-			throw new IllegalArgumentException("Err ! File ["+file.getAbsolutePath()+"] seems not to reside in ["+hudsonRoot.getAbsolutePath()+"] !");
-		}
-		String truncatedPath = file.getAbsolutePath().substring(hudsonRoot.getAbsolutePath().length()+1); // "+1" because we don't need ending file separator
-		return truncatedPath.replaceAll("\\\\", "/"); 
-	}
-
-    public static File buildFileFromPathRelativeToHudsonRoot(String pathRelativeToHudsonRoot){
-        File hudsonRoot = Hudson.getInstance().getRootDir();
-        return new File(hudsonRoot.getAbsolutePath()+File.separator+pathRelativeToHudsonRoot);
+    public static File buildFileFromPathRelativeToHudsonRoot(final String pathRelativeToHudsonRoot) {
+        final File hudsonRoot = Hudson.getInstance().getRootDir();
+        return new File(String.format("%s%s%s",
+                hudsonRoot.getAbsolutePath(),
+                File.separator,
+                pathRelativeToHudsonRoot));
     }
 }

@@ -7,23 +7,22 @@ import java.io.File;
 
 /**
  * @author fcamblor
- * Paths allows to know if a given path is a directory or not, without using a File object since,
- * generally, Path will be relative to jenkins root
+ *         Paths allows to know if a given path is a directory or not, without using a File object since,
+ *         generally, Path will be relative to jenkins root
  */
 public class Path {
+    private final String path;
+    private final boolean isDirectory;
 
-    private String path;
-    private boolean isDirectory;
-
-    public Path(String path){
+    public Path(final String path) {
         this(JenkinsFilesHelper.buildFileFromPathRelativeToHudsonRoot(path));
     }
 
-    public Path(File hudsonFile){
+    public Path(final File hudsonFile) {
         this(JenkinsFilesHelper.buildPathRelativeToHudsonRoot(hudsonFile), hudsonFile.isDirectory());
     }
 
-    public Path(String path, boolean isDirectory) {
+    public Path(final String path, final boolean isDirectory) {
         this.path = path;
         this.isDirectory = isDirectory;
     }
@@ -32,47 +31,41 @@ public class Path {
         return path;
     }
 
-    public File getHudsonFile(){
+    public File getHudsonFile() {
         return JenkinsFilesHelper.buildFileFromPathRelativeToHudsonRoot(this.path);
     }
 
-    public File getScmFile(){
-        // TODO: Externalize ScmSyncConfigurationBusiness.getCheckoutScmDirectoryAbsolutePath()
-        // in another class ?
-        return new File(ScmSyncConfigurationBusiness.getCheckoutScmDirectoryAbsolutePath()+File.separator+getPath());
+    public File getScmFile() {
+        return new File(String.format("%s%s%s",
+                ScmSyncConfigurationBusiness.getCheckoutScmDirectoryAbsolutePath(),
+                File.separator,
+                getPath()));
     }
 
-    public String getFirstNonExistingParentScmPath(){
-        File scmFile = getScmFile();
+    public String getFirstNonExistingParentScmPath() {
         File latestNonExistingScmFile = null;
-        File currentFile = scmFile;
-        while(!currentFile.exists()){
+        for (File currentFile = getScmFile(); !currentFile.exists(); currentFile = currentFile.getParentFile())
             latestNonExistingScmFile = currentFile;
-            currentFile = currentFile.getParentFile();
-        }
-
-        return latestNonExistingScmFile.getAbsolutePath().substring(ScmSyncConfigurationBusiness.getCheckoutScmDirectoryAbsolutePath().length()+1);
+        return latestNonExistingScmFile != null ?
+                latestNonExistingScmFile.getAbsolutePath().substring(ScmSyncConfigurationBusiness.getCheckoutScmDirectoryAbsolutePath().length() + 1) :
+                null;
     }
 
     public boolean isDirectory() {
         return isDirectory;
     }
 
-    public boolean contains(Path p){
+    public boolean contains(final Path p) {
         return this.isDirectory() && p.getPath().startsWith(this.getPath());
     }
 
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(final Object o) {
         if (this == o) return true;
         if (!(o instanceof Path)) return false;
 
-        Path path1 = (Path) o;
-
-        if (isDirectory != path1.isDirectory) return false;
-        if (path != null ? !path.equals(path1.path) : path1.path != null) return false;
-
-        return true;
+        final Path path = (Path) o;
+        return isDirectory == path.isDirectory && !(this.path != null ? !this.path.equals(path.path) : path.path != null);
     }
 
     @Override
@@ -84,6 +77,6 @@ public class Path {
 
     @Override
     public String toString() {
-        return getPath()+(isDirectory()?"/":"");
+        return getPath() + (isDirectory() ? "/" : "");
     }
 }

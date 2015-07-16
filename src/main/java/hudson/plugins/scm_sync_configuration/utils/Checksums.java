@@ -9,23 +9,25 @@ import java.io.RandomAccessFile;
 
 /**
  * @author fcamblor
- * Utility class allowing to provide easy access to jenkins files checksums
+ *         Utility class allowing to provide easy access to jenkins files checksums
  */
 public class Checksums {
-    private static byte[] readAllBytes(File f) throws IOException {
-	    RandomAccessFile r = new RandomAccessFile(f, "r");
-	    byte[] b = new byte[(int)r.length()];
-	    r.readFully(b);
-	    return b;
+    private static byte[] readAllBytes(final File f) throws IOException {
+        final RandomAccessFile r = new RandomAccessFile(f, "r");
+        final byte[] b = new byte[(int) r.length()];
+        r.readFully(b);
+        return b;
     }
 
-    public static boolean fileAndByteArrayContentAreEqual(File file, byte[] content, HashFunction f) throws IOException {
-	return file.exists() ?
-		f.hashBytes(readAllBytes(file)).equals(f.hashBytes(content)) :
-		content == null || content.length == 0;
+    public static boolean fileAndByteArrayContentAreEqual(final File file, final byte[] content, final HashFunction f)
+            throws IOException {
+        return file.exists() ?
+                f.hashBytes(readAllBytes(file)).equals(f.hashBytes(content)) :
+                content == null || content.length == 0;
     }
 
-    public static boolean fileAndByteArrayContentAreEqual(File file, byte[] content) throws IOException {
-		return fileAndByteArrayContentAreEqual(file, content, Hashing.crc32());
+    public static boolean fileAndByteArrayContentAreEqual(final File file, final byte[] content)
+            throws IOException {
+        return fileAndByteArrayContentAreEqual(file, content, Hashing.crc32());
     }
 }

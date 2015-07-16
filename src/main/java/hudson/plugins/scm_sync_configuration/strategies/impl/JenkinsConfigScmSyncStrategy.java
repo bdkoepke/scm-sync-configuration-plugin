@@ -14,37 +14,36 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class JenkinsConfigScmSyncStrategy extends AbstractScmSyncStrategy {
+    private static final List<PageMatcher> PAGE_MATCHERS = new ArrayList<>();
+    private static final String[] PATTERNS = new String[]{"config.xml"};
+    private static final ConfigurationEntityMatcher CONFIG_ENTITY_MATCHER = new PatternsEntityMatcher(PATTERNS);
 
-	private static final List<PageMatcher> PAGE_MATCHERS = new ArrayList<PageMatcher>(){ {
-        // Global configuration page
-        add(new PageMatcher("^configure$", "form[name='config']"));
-        // View configuration pages
-        add(new PageMatcher("^(.+/)?view/[^/]+/configure$", "form[name='viewConfig']"));
-        add(new PageMatcher("^newView$", "form[name='createView'],form[name='createItem']"));
-    } };
-    
-    private static final String[] PATTERNS = new String[]{
-        "config.xml"
-    };
-    
-	private static final ConfigurationEntityMatcher CONFIG_ENTITY_MATCHER = new PatternsEntityMatcher(PATTERNS);
-	
-	public JenkinsConfigScmSyncStrategy(){
-		super(CONFIG_ENTITY_MATCHER, PAGE_MATCHERS);
-	}
+    static {
+        PAGE_MATCHERS.add(new PageMatcher("^configure$"));
+        PAGE_MATCHERS.add(new PageMatcher("^(.+/)?view/[^/]+/configure$"));
+        PAGE_MATCHERS.add(new PageMatcher("^newView$"));
+    }
 
-    public CommitMessageFactory getCommitMessageFactory(){
-        return new CommitMessageFactory(){
-            public WeightedMessage getMessageWhenSaveableUpdated(Saveable s, XmlFile file) {
-                return new WeightedMessage("Jenkins configuration files updated",
-                        // Jenkins config update message should be considered as "important", especially
-                        // more important than the plugin descriptors Saveable updates
+    public JenkinsConfigScmSyncStrategy() {
+        super(CONFIG_ENTITY_MATCHER, PAGE_MATCHERS);
+    }
+
+    public CommitMessageFactory getCommitMessageFactory() {
+        return new CommitMessageFactory() {
+            @Override
+            public WeightedMessage getMessageWhenSaveableUpdated(final Saveable s, final XmlFile file) {
+                return new WeightedMessage(
+                        "Jenkins configuration files updated",
                         MessageWeight.NORMAL);
             }
-            public WeightedMessage getMessageWhenItemRenamed(Item item, String oldPath, String newPath) {
+
+            @Override
+            public WeightedMessage getMessageWhenItemRenamed(final Item item, final String oldPath, final String newPath) {
                 throw new IllegalStateException("Jenkins configuration files should never be renamed !");
             }
-            public WeightedMessage getMessageWhenItemDeleted(Item item) {
+
+            @Override
+            public WeightedMessage getMessageWhenItemDeleted(final Item item) {
                 throw new IllegalStateException("Jenkins configuration files should never be deleted !");
             }
         };

@@ -3,20 +3,13 @@ package hudson.plugins.scm_sync_configuration.strategies.model;
 import java.util.regex.Pattern;
 
 public class PageMatcher {
+    private final Pattern urlRegex;
 
-	private Pattern urlRegex;
-	private String targetFormSelector;
-	
-	public PageMatcher(String _urlRegexStr, String _targetFormSelector){
-		this.urlRegex = Pattern.compile(_urlRegexStr);
-		this.targetFormSelector = _targetFormSelector;
-	}
+    public PageMatcher(final String urlRegexStr) {
+        this.urlRegex = Pattern.compile(urlRegexStr);
+    }
 
-	public Pattern getUrlRegex() {
-		return urlRegex;
-	}
-
-	public String getTargetFormSelector() {
-		return targetFormSelector;
-	}
+    public Pattern getUrlRegex() {
+        return urlRegex;
+    }
 }

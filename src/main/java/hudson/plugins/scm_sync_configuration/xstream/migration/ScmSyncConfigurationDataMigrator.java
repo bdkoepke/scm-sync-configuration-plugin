@@ -5,11 +5,13 @@ import com.thoughtworks.xstream.io.HierarchicalStreamReader;
 
 /**
  * Migrator from old GlobalBuildStats POJO to later GlobalBuildStats POJO
- * @author fcamblor
+ *
  * @param <TFROM>
  * @param <TTO>
+ * @author fcamblor
  */
 public interface ScmSyncConfigurationDataMigrator<TFROM extends ScmSyncConfigurationPOJO, TTO extends ScmSyncConfigurationPOJO> {
-	public TTO migrate(TFROM pojo);
-	public TTO readScmSyncConfigurationPOJO(HierarchicalStreamReader reader, UnmarshallingContext context);	
+    TTO migrate(final TFROM pojo);
+
+    TTO readScmSyncConfigurationPOJO(final HierarchicalStreamReader reader, final UnmarshallingContext context);
 }

@@ -5,19 +5,16 @@ import hudson.model.PageDecorator;
 import hudson.plugins.scm_sync_configuration.ScmSyncConfigurationPlugin;
 import org.kohsuke.stapler.bind.JavaScriptMethod;
 
+@SuppressWarnings("unused")
 @Extension
-public class ScmSyncConfigurationPageDecorator extends PageDecorator{
+public class ScmSyncConfigurationPageDecorator extends PageDecorator {
 
-	public ScmSyncConfigurationPageDecorator(){
-		super(ScmSyncConfigurationPageDecorator.class);
-	}
-	
-	public ScmSyncConfigurationPlugin getScmSyncConfigPlugin(){
-		return ScmSyncConfigurationPlugin.getInstance();
-	}
+    public ScmSyncConfigurationPlugin getScmSyncConfigPlugin() {
+        return ScmSyncConfigurationPlugin.getInstance();
+    }
 
     @JavaScriptMethod
-   	public void purgeScmSyncConfigLogs() {
+    public void purgeScmSyncConfigLogs() {
         getScmSyncConfigPlugin().purgeFailLogs();
-   	}
+    }
 }
